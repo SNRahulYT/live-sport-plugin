@@ -20,14 +20,12 @@ const manifest = {
   resources: ['catalog', 'meta', 'stream'],
 
   catalogs: [
-    {
-      type: 'tv',
-      id: 'nuvio_sports_catalog',
-      name: '📡 Live Sports',
-      extra: [
-        { name: 'search', isRequired: false }
-      ],
-    },
+    { type: 'tv', id: 'nuvio_sports_football', name: '⚽ Football', extra: [{ name: 'search', isRequired: false }] },
+    { type: 'tv', id: 'nuvio_sports_cricket', name: '🏏 Cricket', extra: [{ name: 'search', isRequired: false }] },
+    { type: 'tv', id: 'nuvio_sports_motorsport', name: '🏎️ Motorsport', extra: [{ name: 'search', isRequired: false }] },
+    { type: 'tv', id: 'nuvio_sports_basketball', name: '🏀 Basketball', extra: [{ name: 'search', isRequired: false }] },
+    { type: 'tv', id: 'nuvio_sports_american_football', name: '🏈 American Football', extra: [{ name: 'search', isRequired: false }] },
+    { type: 'tv', id: 'nuvio_sports_other', name: '📡 Other Sports', extra: [{ name: 'search', isRequired: false }] },
   ],
 
   idPrefixes: ['nuvio_sport_'],

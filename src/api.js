@@ -3,11 +3,49 @@ const axios = require('axios');
 const STREAMED_API = 'https://streamed.pk/api';
 const STREAMFREE_API = 'https://streamfree.top/streams';
 
+function normalizeCategory(cat) {
+  if (!cat) return 'other';
+  cat = cat.toLowerCase().replace(/[^a-z0-9]/g, '');
+  if (cat.includes('soccer')) return 'football';
+  if (cat.includes('motor')) return 'motorsport';
+  if (cat.includes('american')) return 'american_football';
+  return cat;
+}
+
+function normalizeStr(str) {
+  if (!str) return '';
+  return str.toLowerCase().replace(/[^a-z0-9]/g, ' ').replace(/\s+/g, ' ').trim();
+}
+
+function isSameEvent(e1, e2) {
+  if (e1.category !== e2.category) return false;
+  
+  // Check if dates are within 24 hours of each other
+  const d1 = parseInt(e1.date) || 0;
+  const d2 = parseInt(e2.date) || 0;
+  if (d1 && d2 && Math.abs(d1 - d2) > 86400000) return false;
+
+  // Exact ID match
+  if (e1.id === e2.id) return true;
+
+  // Fuzzy match on title
+  const words1 = normalizeStr(e1.title).split(' ').filter(w => w.length > 2);
+  const words2 = normalizeStr(e2.title).split(' ').filter(w => w.length > 2);
+  
+  let matches = 0;
+  for (const w of words1) {
+    if (words2.includes(w)) matches++;
+  }
+  
+  const similarity = matches / Math.max(words1.length, words2.length, 1);
+  return similarity >= 0.4;
+}
+
 /**
- * Fetch all active matches from both sources and merge them
+ * Fetch all active matches from both sources and merge them into unified events
  */
 async function getAllMatches() {
-  const matchMap = new Map(); // key = id/stream_key, value = match object
+  const unifiedEvents = [];
 
   // 1. Fetch from StreamFree.top (Primary - has logos)
   try {
@@ -17,19 +55,16 @@ async function getAllMatches() {
         if (Array.isArray(streams)) {
           streams.forEach(s => {
             const id = s.stream_key || s.id;
-            matchMap.set(id, {
+            unifiedEvents.push({
               id: id,
               title: s.name,
-              category: category,
-              // date is timestamp * 1000 to convert to ms
+              category: normalizeCategory(category),
               date: (s.match_timestamp * 1000).toString(), 
               popular: (s.viewers || 0) > 100 ? '1' : '0',
-              // Rich metadata
               league: s.league,
               team1: s.team1,
               team2: s.team2,
               thumbnail_url: s.thumbnail_url,
-              // Map stream_key directly to the streamfree source so our custom decryptor can identify it
               sources: [{ source: 'streamfree', id: id }]
             });
           });
@@ -40,26 +75,35 @@ async function getAllMatches() {
     console.error('[API] Error fetching from StreamFree.top:', error.message);
   }
 
-  // 2. Fetch from Streamed.pk (Secondary/Fallback)
+  // 2. Fetch from Streamed.pk (Secondary/Fallback) and group them
   try {
     const pkRes = await axios.get(`${STREAMED_API}/matches/all`, { timeout: 7000 });
     if (Array.isArray(pkRes.data)) {
       pkRes.data.forEach(s => {
-        // Only add if not already present from StreamFree
-        if (!matchMap.has(s.id)) {
-          matchMap.set(s.id, {
-            id: s.id,
-            title: s.title,
-            category: s.category,
-            date: s.date,
-            popular: s.popular,
-            sources: s.sources || [],
-            // Fallbacks for rich metadata
-            league: '',
-            team1: null,
-            team2: null,
-            thumbnail_url: ''
-          });
+        const pkEvent = {
+          id: s.id,
+          title: s.title,
+          category: normalizeCategory(s.category),
+          date: s.date,
+          popular: s.popular,
+          sources: s.sources || [],
+          league: '',
+          team1: null,
+          team2: null,
+          thumbnail_url: ''
+        };
+
+        // Try to find a matching event in unifiedEvents
+        const existingMatch = unifiedEvents.find(e => isSameEvent(e, pkEvent));
+
+        if (existingMatch) {
+          // Merge sources
+          existingMatch.sources = [...existingMatch.sources, ...pkEvent.sources];
+          // Update popularity if needed
+          if (pkEvent.popular === '1') existingMatch.popular = '1';
+        } else {
+          // If no match found, add as a new event
+          unifiedEvents.push(pkEvent);
         }
       });
     }
@@ -67,7 +111,7 @@ async function getAllMatches() {
     console.error('[API] Error fetching from Streamed.pk:', error.message);
   }
 
-  return Array.from(matchMap.values());
+  return unifiedEvents;
 }
 
 /**

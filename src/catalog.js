@@ -48,12 +48,22 @@ function mapMatchToMetaPreview(match) {
 // ─── Handlers ─────────────────────────────────────────────────────────────────
 
 async function handleCatalog(type, id, extra) {
-  if (type !== 'tv' || id !== 'nuvio_sports_catalog') {
+  if (type !== 'tv' || !id.startsWith('nuvio_sports_')) {
     return { metas: [] };
   }
 
+  const categoryMatch = id.replace('nuvio_sports_', '');
   const matches = await getAllMatches();
-  const metas = matches.map(mapMatchToMetaPreview);
+  
+  let filteredMatches = matches;
+  if (categoryMatch === 'other') {
+    const knownCats = ['football', 'cricket', 'motorsport', 'basketball', 'american_football'];
+    filteredMatches = matches.filter(m => !knownCats.includes(m.category));
+  } else if (categoryMatch !== 'catalog') {
+    filteredMatches = matches.filter(m => m.category === categoryMatch);
+  }
+
+  const metas = filteredMatches.map(mapMatchToMetaPreview);
 
   // Stremio supports search in catalogs
   if (extra && extra.search) {
