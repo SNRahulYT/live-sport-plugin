@@ -29,8 +29,8 @@ async function getAllMatches() {
               team1: s.team1,
               team2: s.team2,
               thumbnail_url: s.thumbnail_url,
-              // Map stream_key directly to the echo source used by embed.st
-              sources: [{ source: 'echo', id: id }]
+              // Map stream_key directly to the streamfree source so our custom decryptor can identify it
+              sources: [{ source: 'streamfree', id: id }]
             });
           });
         }
