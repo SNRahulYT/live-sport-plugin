@@ -30,7 +30,7 @@ const resolverPath = path.join(__dirname, '..', 'resolver', 'src', 'server.js');
 console.log(`Starting Stream Resolver at ${resolverPath}...`);
 const resolverProcess = spawn('node', [resolverPath], {
   stdio: 'inherit',
-  env: { ...process.env, PORT: '3000' }
+  env: { ...process.env, PORT: '3000', BASE_URL: BASE_URL }
 });
 resolverProcess.on('error', (err) => console.error('Resolver spawn error:', err));
 
@@ -51,7 +51,7 @@ app.use(express.static(path.join(__dirname, '..', 'public')));
 
 // Mount the HLS Video Proxy (routes to the internal resolver on port 3000)
 app.use('/api', createProxyMiddleware({
-  target: 'http://localhost:3000/api',
+  target: 'http://localhost:3000',
   changeOrigin: true
 }));
 

@@ -14,13 +14,14 @@ async function readJson(req) {
 }
 
 export async function route(req, res) {
-  if (!req.headers.host) {
+  if (!req.headers.host && !process.env.BASE_URL) {
     res.writeHead(400, { 'Content-Type': 'text/plain' })
     res.end('missing host')
     return
   }
 
-  const loc = new URL(req.url ?? '/', `http://${req.headers.host}`)
+  const baseOrigin = process.env.BASE_URL || `http://${req.headers.host}`
+  const loc = new URL(req.url ?? '/', baseOrigin)
   const { pathname, searchParams, origin } = loc
 
   try {
