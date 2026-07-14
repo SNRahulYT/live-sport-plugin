@@ -48,7 +48,7 @@ app.use(cors());
 
 // Mount the HLS Video Proxy (routes to the internal resolver on port 3000)
 app.use('/api', createProxyMiddleware({
-  target: 'http://localhost:3000',
+  target: 'http://localhost:3000/api',
   changeOrigin: true
 }));
 
