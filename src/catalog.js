@@ -3,24 +3,13 @@ const { getAllMatches } = require('./api');
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function mapMatchToMetaPreview(match) {
-  // Use StreamFree thumbnail_url as the primary poster for a beautiful side-by-side graphic
-  const genericPoster = 'https://raw.githubusercontent.com/stremio/stremio-addon-sdk/master/docs/api/images/stremio-logo.png';
-  let poster = genericPoster;
-  if (match.thumbnail_url) {
-    poster = `https://streamfree.top${match.thumbnail_url}`;
-  } else if (match.team1 && match.team1.logo) {
-    poster = match.team1.logo;
-  }
+  // Generate a premium fallback image with placehold.co
+  const safeTitle = encodeURIComponent((match.title || 'Live Match').substring(0, 30));
+  const fallbackPoster = `https://placehold.co/800x450/111111/ef4444.png?text=${safeTitle}&font=Montserrat`;
+  
+  let poster = match.thumbnail_url ? `https://streamfree.top${match.thumbnail_url}` : fallbackPoster;
+  let background = match.thumbnail_url ? `https://streamfree.top${match.thumbnail_url}` : fallbackPoster;
 
-  // Use team2 logo or thumbnail as background
-  let background = genericPoster;
-  if (match.team2 && match.team2.logo) {
-    background = match.team2.logo;
-  } else if (match.thumbnail_url) {
-    background = `https://streamfree.top${match.thumbnail_url}`;
-  }
-
-  // Convert the date
   let dateObj = new Date();
   if (match.date && !isNaN(parseInt(match.date))) {
      dateObj = new Date(parseInt(match.date));
@@ -29,19 +18,23 @@ function mapMatchToMetaPreview(match) {
   }
   const timeString = dateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
-  // Add [LIVE] tag if popular/live
-  const prefix = match.popular === '1' ? '🔴 [LIVE] ' : '';
+  const prefix = match.popular === '1' ? '🔴 LIVE: ' : '';
+  const cast = [];
+  if (match.team1 && match.team1.name) cast.push(match.team1.name);
+  if (match.team2 && match.team2.name) cast.push(match.team2.name);
 
   return {
-    id: `nuvio_sport_${match.id}`, // Custom prefix to differentiate
+    id: `nuvio_sport_${match.id}`,
     type: 'tv',
     name: `${prefix}${match.title}`,
-    genres: [match.category],
+    genres: [match.category.toUpperCase()],
     poster: poster,
-    posterShape: 'landscape', // ESPN logos are often transparent/square, landscape works best generally
+    posterShape: 'landscape',
     background: background,
-    logo: match.team1 && match.team1.logo ? match.team1.logo : poster,
-    description: `League: ${match.league || 'Unknown'}\nCategory: ${match.category}\nMatch Time: ${timeString}`,
+    logo: match.team1 && match.team1.logo ? match.team1.logo : null,
+    releaseInfo: timeString,
+    description: `🏆 League: ${match.league || 'Various'}\n📅 Category: ${match.category.toUpperCase()}\n⏰ Kickoff: ${timeString}`,
+    cast: cast
   };
 }
 
