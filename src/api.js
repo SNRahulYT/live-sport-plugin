@@ -223,6 +223,68 @@ async function getAllMatches() {
     console.error('[API] Error fetching from Streamed-Images JSON:', error.message);
   }
 
+  // 5. Fetch from TimStreams (vixnuvew API)
+  try {
+    const tsRes = await axios.get('https://api.vixnuvew.uk/api/live-upcoming', { timeout: 7000 });
+    if (tsRes.data && Array.isArray(tsRes.data.events)) {
+      const genres = tsRes.data.genres || {};
+      
+      tsRes.data.events.forEach((s, index) => {
+        const title = s.name || `TimStreams Event ${index}`;
+        
+        // Map genre integer to normalized category string
+        const genreLabel = genres[String(s.genre)] || 'other';
+        const category = normalizeCategory(genreLabel);
+        
+        // Parse ISO time to unix ms timestamp
+        let dateMs = Date.now();
+        if (s.time) {
+          const parsed = new Date(s.time).getTime();
+          if (!isNaN(parsed)) dateMs = parsed;
+        }
+
+        // Filter out vip-only streams and map to sources
+        const tsSources = (s.streams || [])
+          .filter(st => !st.vip)
+          .map(st => ({
+            source: 'timstreams',
+            id: st.name || 'Stream',
+            url: st.url
+          }));
+
+        if (tsSources.length === 0) return;
+
+        const tsEvent = {
+          id: `ts_${s.url || index}`,
+          title: title,
+          category: category,
+          date: dateMs.toString(),
+          popular: s.featured ? '1' : '0',
+          sources: tsSources,
+          league: '',
+          team1: null,
+          team2: null,
+          thumbnail_url: s.logo || ''
+        };
+
+        // Try to find a matching event in unifiedEvents
+        const existingMatch = unifiedEvents.find(e => isSameEvent(e, tsEvent));
+
+        if (existingMatch) {
+          existingMatch.sources = [...existingMatch.sources, ...tsEvent.sources];
+          if (!existingMatch.thumbnail_url && tsEvent.thumbnail_url) {
+            existingMatch.thumbnail_url = tsEvent.thumbnail_url;
+          }
+          if (tsEvent.popular === '1') existingMatch.popular = '1';
+        } else {
+          unifiedEvents.push(tsEvent);
+        }
+      });
+    }
+  } catch (error) {
+    console.error('[API] Error fetching from TimStreams:', error.message);
+  }
+
   console.log(`[API] Fetched ${unifiedEvents.length} total events`);
   cachedMatches = unifiedEvents;
   lastFetchTime = Date.now();

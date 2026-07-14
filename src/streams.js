@@ -102,6 +102,29 @@ async function handleStream(type, id) {
       continue;
     }
 
+    if (sourceName === 'timstreams') {
+      let url = src.url;
+      
+      // 1. Direct M3U8 Links
+      if (url && url.includes('.m3u8')) {
+        streams.push({
+          name: 'Nuvio Direct',
+          title: `TimStreams (${src.id})`,
+          url: url
+        });
+        continue;
+      }
+      
+      // 2. ritzembeds or other embed pages → serve via Web Player
+      const externalUrl = `${BASE_URL}/watch?url=${encodeURIComponent(url)}&title=${encodeURIComponent(match.title)}`;
+      streams.push({
+        name: 'Nuvio Web Player',
+        title: `TimStreams (${src.id})`,
+        externalUrl: externalUrl
+      });
+      continue;
+    }
+
     if (sourceName === 'bintv') {
       let url = src.url;
       
