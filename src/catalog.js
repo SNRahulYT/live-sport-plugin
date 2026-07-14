@@ -1,95 +1,67 @@
-/**
- * catalog.js — Catalog & Meta Handlers (iptv-org edition)
- *
- * Serves the list of free sports TV channels from iptv-org.
- * Supports search (filter by name) and pagination (skip).
- */
+const { getAllMatches } = require('./api');
 
-const { getAllChannels, searchChannels, getChannelById, sanitizeId } = require('./api');
+// ─── Helpers ──────────────────────────────────────────────────────────────────
 
-const PAGE_SIZE = 100;
+function mapMatchToMetaPreview(match) {
+  // Use a generic placeholder poster
+  const poster = 'https://raw.githubusercontent.com/stremio/stremio-addon-sdk/master/docs/api/images/stremio-logo.png';
 
-/**
- * Transform an iptv-org channel into a Stremio MetaPreview object.
- * @param {Object} ch
- * @returns {Object}
- */
-function channelToMeta(ch) {
-  // Clean up channel name — strip resolution tags like "(720p)", "(1080p)"
-  const cleanName = ch.name.replace(/\s*\(\d+p\)\s*/gi, '').trim();
+  const dateObj = new Date(match.date);
+  const timeString = dateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+  // Add [LIVE] tag if popular/live
+  const prefix = match.popular ? '🔴 [LIVE] ' : '';
 
   return {
-    id:          `iptv-${sanitizeId(ch)}`,
-    type:        'tv',
-    name:        cleanName,
-    poster:      ch.logo || null,
-    posterShape: 'square',
-    background:  ch.logo || null,
-    logo:        ch.logo || null,
-    description: `📡 Live Sports Channel\n${cleanName}`,
-    releaseInfo: '🔴 LIVE',
-    genres:      ['Live TV', 'Sports'],
+    id: `nuvio_sport_${match.id}`, // Custom prefix to differentiate
+    type: 'tv',
+    name: `${prefix}${match.title}`,
+    genres: [match.category],
+    poster: poster,
+    posterShape: 'landscape',
+    background: poster,
+    description: `Category: ${match.category}\nMatch Time: ${timeString}\nPopular: ${match.popular ? 'Yes' : 'No'}`,
   };
 }
 
-/**
- * Handle catalog requests from Nuvio.
- * Supports ?search=... to filter by channel name and ?skip=N for pagination.
- */
+// ─── Handlers ─────────────────────────────────────────────────────────────────
+
 async function handleCatalog(type, id, extra) {
-  console.log(`[Catalog] type=${type} id=${id} extra=${JSON.stringify(extra)}`);
-
-  try {
-    let channels;
-
-    if (extra?.search) {
-      // Search mode — filter by name
-      channels = await searchChannels(extra.search);
-      console.log(`[Catalog] Search "${extra.search}": ${channels.length} results`);
-    } else {
-      channels = await getAllChannels();
-    }
-
-    if (!channels || channels.length === 0) {
-      return { metas: [] };
-    }
-
-    // Pagination
-    const skip = parseInt(extra?.skip) || 0;
-    const page = channels.slice(skip, skip + PAGE_SIZE);
-    const metas = page.map(channelToMeta);
-
-    console.log(`[Catalog] Returning ${metas.length} channels (skip=${skip})`);
-    return { metas };
-
-  } catch (err) {
-    console.error('[Catalog] Error:', err.message);
+  if (type !== 'tv' || id !== 'nuvio_sports_catalog') {
     return { metas: [] };
   }
+
+  const matches = await getAllMatches();
+  const metas = matches.map(mapMatchToMetaPreview);
+
+  // Stremio supports search in catalogs
+  if (extra && extra.search) {
+    const q = extra.search.toLowerCase();
+    const filtered = metas.filter(m => m.name.toLowerCase().includes(q));
+    return { metas: filtered };
+  }
+
+  return { metas };
 }
 
-/**
- * Handle meta (detail screen) requests.
- */
 async function handleMeta(type, id) {
-  console.log(`[Meta] type=${type} id=${id}`);
-
-  // Strip "iptv-" prefix to get our sanitized channel ID
-  const channelId = id.replace(/^iptv-/, '');
-  const ch = await getChannelById(channelId);
-
-  if (!ch) {
-    console.warn(`[Meta] Channel not found: ${channelId}`);
+  if (type !== 'tv' || !id.startsWith('nuvio_sport_')) {
     return { meta: null };
   }
 
-  return {
-    meta: {
-      ...channelToMeta(ch),
-      runtime: 'Live',
-      website: 'https://github.com/iptv-org/iptv',
-    },
-  };
+  const matchId = id.replace('nuvio_sport_', '');
+  const matches = await getAllMatches();
+  const match = matches.find(m => m.id === matchId);
+
+  if (!match) {
+    return { meta: null };
+  }
+
+  const metaPreview = mapMatchToMetaPreview(match);
+  return { meta: metaPreview };
 }
 
-module.exports = { handleCatalog, handleMeta };
+module.exports = {
+  handleCatalog,
+  handleMeta
+};

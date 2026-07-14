@@ -1,75 +1,56 @@
-/**
- * streams.js — Stream Handler (iptv-org edition)
- *
- * Returns direct HLS (.m3u8) stream URLs for a channel.
- * These play natively inside Nuvio's built-in player — no browser, no embed.
- *
- * Some streams require a specific User-Agent header (noted in the M3U as
- * #EXTVLCOPT:http-user-agent=...). We pass this as a behaviorHint so
- * compatible players can use it.
- */
+const axios = require('axios');
+const { getMatchStreams, getAllMatches } = require('./api');
+const { BASE_URL } = require('./config');
 
-const { getChannelById, sanitizeId } = require('./api');
-
-/**
- * Handle stream requests from Nuvio.
- * Called when the user clicks on a channel to watch it.
- *
- * @param {string} type  Always "tv"
- * @param {string} id    Item ID, e.g. "iptv-bein-sports-1-qa"
- * @returns {Promise<{ streams: Object[] }>}
- */
 async function handleStream(type, id) {
-  console.log(`[Streams] type=${type} id=${id}`);
-
-  // Strip "iptv-" prefix to recover our sanitized channel ID
-  const channelId = id.replace(/^iptv-/, '');
-
-  const ch = await getChannelById(channelId);
-
-  if (!ch) {
-    console.warn(`[Streams] Channel not found: ${channelId}`);
-    return {
-      streams: [{
-        name: '⚠️ Channel Not Found',
-        title: 'This channel could not be located. It may have been removed.',
-        url: '',
-      }],
-    };
+  if (type !== 'tv' || !id.startsWith('nuvio_sport_')) {
+    return { streams: [] };
   }
 
-  if (!ch.url) {
-    return {
-      streams: [{
-        name: '⚠️ No Stream Available',
-        title: 'No stream URL is available for this channel.',
-        url: '',
-      }],
-    };
+  const matchId = id.replace('nuvio_sport_', '');
+  
+  // First, get the match details to find its sources
+  const matches = await getAllMatches();
+  const match = matches.find(m => m.id === matchId);
+
+  if (!match || !match.sources || match.sources.length === 0) {
+    return { streams: [] };
   }
 
-  // Build the stream object with the direct HLS URL
-  const stream = {
-    name: `📡 ${ch.name.replace(/\s*\(\d+p\)\s*/gi, '').trim()}`,
-    title: '🔴 Live · Direct HLS Stream',
-    url: ch.url,
-    // behaviorHints for live content
-    behaviorHints: {
-      notWebReady: false,
-    },
-  };
+  const streams = [];
 
-  // If the stream needs a specific User-Agent, add it as a header hint
-  // (supported by Nuvio and VLC)
-  if (ch.userAgent) {
-    stream.title += '\n🔧 Custom User-Agent required';
-    // Pass headers through the stream URL as query params if needed
-    // Most modern players pick up the #EXTVLCOPT from the playlist, but
-    // we also surface it in the title so the user knows
+  for (const src of match.sources) {
+    const sourceName = src.source; // e.g. "admin" or "echo"
+    const streamNo = '1'; // Assume stream 1 for now
+
+    const watchUrl = `https://streamed.pk/watch/${matchId}/${sourceName}/${streamNo}`;
+    
+    try {
+      // Call our internal stream resolver running on port 3000
+      const resolveRes = await axios.post('http://localhost:3000/api/stream', { url: watchUrl }, { timeout: 15000 });
+      
+      if (resolveRes.data && resolveRes.data.relay) {
+        // The resolver gives a relay URL like http://localhost:3000/api/hls?...
+        // We must replace localhost:3000 with our BASE_URL since Nuvio needs the public URL.
+        const relayUrl = resolveRes.data.relay;
+        
+        const proxyUrlObj = new URL(relayUrl);
+        const finalUrl = `${BASE_URL}${proxyUrlObj.pathname}${proxyUrlObj.search}`;
+        
+        streams.push({
+          name: `Nuvio HLS Proxy`,
+          title: `Streamed.pk (${sourceName})`,
+          url: finalUrl
+        });
+      }
+    } catch (err) {
+      console.error(`[Streams] Resolver failed for ${watchUrl}:`, err.message);
+    }
   }
 
-  console.log(`[Streams] Returning direct HLS stream for: ${ch.name}`);
-  return { streams: [stream] };
+  return { streams };
 }
 
-module.exports = { handleStream };
+module.exports = {
+  handleStream
+};

@@ -14,12 +14,25 @@
 
 const express = require('express');
 const cors    = require('cors');
-const { addonBuilder, getRouter } = require('stremio-addon-sdk');
+const { getRouter } = require('stremio-addon-sdk');
+const { createProxyMiddleware } = require('http-proxy-middleware');
+const { spawn } = require('child_process');
+const path = require('path');
 
-const { builder }                 = require('./manifest');
+const { builder } = require('./manifest');
 const { handleCatalog, handleMeta } = require('./catalog');
-const { handleStream }            = require('./streams');
-const { PORT, BASE_URL }          = require('./config');
+const { handleStream } = require('./streams');
+const { PORT, BASE_URL } = require('./config');
+
+// ─── Spawn the Streamed.pk Resolver ───────────────────────────────────────────
+
+const resolverPath = path.join(__dirname, '..', 'resolver', 'src', 'server.js');
+console.log(`Starting Stream Resolver at ${resolverPath}...`);
+const resolverProcess = spawn('node', [resolverPath], {
+  stdio: 'inherit',
+  env: { ...process.env, PORT: '3000' }
+});
+resolverProcess.on('error', (err) => console.error('Resolver spawn error:', err));
 
 // ─── Register Addon Handlers ──────────────────────────────────────────────────
 
@@ -31,14 +44,19 @@ builder.defineStreamHandler(({ type, id })         => handleStream(type, id));
 
 const app = express();
 
-// Global CORS — required so Nuvio (running on any origin/device) can
-// load /manifest.json without a networkError_manifestLoadError
 app.use(cors());
 
-// Mount the Stremio addon router (handles /manifest.json, /catalog/*, /stream/*, /meta/*)
+// Mount the HLS Video Proxy (routes to the internal resolver on port 3000)
+app.use('/api', createProxyMiddleware({
+  target: 'http://localhost:3000',
+  changeOrigin: true
+}));
+
+// Mount the Stremio addon router
 app.use(getRouter(builder.getInterface()));
 
 // ─── /watch — Embed Proxy Page ────────────────────────────────────────────────
+
 // When the user clicks a stream, Nuvio opens this URL in the browser.
 // It serves a clean full-screen HTML page that wraps the embed in an iframe,
 // bypassing the referrer/origin restrictions that the raw embed.st URLs have.
