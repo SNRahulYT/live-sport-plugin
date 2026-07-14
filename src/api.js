@@ -1,217 +1,193 @@
 /**
- * api.js — Streamed.pk API Client
+ * api.js — iptv-org Sports Channel API Client
  *
- * All communication with the Streamed.pk public REST API lives here.
- * Includes a simple in-memory TTL cache to avoid hammering the API on
- * every Nuvio catalog refresh, and a single-retry strategy on failure.
+ * Fetches and parses the free, public sports M3U playlist from iptv-org.
+ * All streams are direct HLS (.m3u8) URLs — no embeds, no browser needed.
+ * Plays natively inside Nuvio's built-in player.
  *
- * Base URL: https://streamed.pk/api
- * Auth:     None required
+ * Data sources:
+ *   Channels (metadata + logos): https://iptv-org.github.io/api/channels.json
+ *   Streams  (m3u8 URLs):        https://iptv-org.github.io/api/streams.json
+ *   Sports M3U playlist:         https://iptv-org.github.io/iptv/categories/sports.m3u
+ *
+ * We use the M3U playlist as the primary source because it already combines
+ * channel metadata + stream URLs in one file, making parsing very simple.
  */
 
 const fetch = require('node-fetch');
 
-const BASE_URL = 'https://streamed.pk/api';
+// ─── Source URLs ─────────────────────────────────────────────────────────────
 
-// ─── In-Memory TTL Cache ────────────────────────────────────────────────────
+const SPORTS_M3U_URL = 'https://iptv-org.github.io/iptv/categories/sports.m3u';
 
-/**
- * Cache store: Map of cacheKey → { data, expiresAt }
- * Entries expire after their individual TTL in milliseconds.
- */
-const cache = new Map();
+// Cache TTL: refresh sports list every 6 hours (it changes infrequently)
+const CACHE_TTL_MS = 6 * 60 * 60 * 1000;
 
-/**
- * Retrieve a cached value if still valid, otherwise return null.
- * @param {string} key
- * @returns {any|null}
- */
-function cacheGet(key) {
-  const entry = cache.get(key);
-  if (!entry) return null;
-  if (Date.now() > entry.expiresAt) {
-    cache.delete(key);
-    return null;
-  }
-  return entry.data;
-}
+// ─── In-Memory Cache ──────────────────────────────────────────────────────────
+
+let cachedChannels = null;
+let cacheTimestamp = 0;
+
+// ─── M3U Parser ───────────────────────────────────────────────────────────────
 
 /**
- * Store a value in cache with a TTL.
- * @param {string} key
- * @param {any} data
- * @param {number} ttlMs  Time-to-live in milliseconds
- */
-function cacheSet(key, data, ttlMs) {
-  cache.set(key, { data, expiresAt: Date.now() + ttlMs });
-}
-
-// ─── TTL Constants ───────────────────────────────────────────────────────────
-
-const TTL = {
-  LIVE:    30  * 1000,  //  30 seconds  — live matches change frequently
-  TODAY:    5  * 60 * 1000,  //  5 minutes  — today's schedule
-  ALL:      5  * 60 * 1000,  //  5 minutes  — all upcoming matches
-  SPORT:    2  * 60 * 1000,  //  2 minutes  — per-sport matches
-  STREAMS: 30  * 1000,       //  30 seconds — stream availability
-};
-
-// ─── Core Fetch with Retry ───────────────────────────────────────────────────
-
-/**
- * Fetch a JSON endpoint from Streamed.pk with a single retry on failure.
- * Returns [] on repeated failure so callers always get an array.
+ * Parse an M3U playlist string into an array of channel objects.
+ * Each channel has: { id, name, logo, groupTitle, url, userAgent }
  *
- * @param {string} url      Full URL to fetch
- * @param {string} cacheKey Unique key for caching this response
- * @param {number} ttlMs    Cache TTL in milliseconds
- * @returns {Promise<any[]>}
+ * M3U format example:
+ *   #EXTINF:-1 tvg-id="ESPN.us" tvg-logo="https://..." group-title="Sports",ESPN (720p)
+ *   https://example.com/stream.m3u8
+ *
+ * @param {string} m3uText  Raw M3U playlist text
+ * @returns {Object[]}
  */
-async function apiFetch(url, cacheKey, ttlMs) {
-  // Return cached data if available
-  const cached = cacheGet(cacheKey);
-  if (cached !== null) {
-    return cached;
+function parseM3U(m3uText) {
+  const channels = [];
+  const lines = m3uText.split('\n').map(l => l.trim()).filter(Boolean);
+
+  let currentMeta = null;
+  let currentUserAgent = null;
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+
+    if (line.startsWith('#EXTINF')) {
+      // Parse the EXTINF metadata line
+      // Extract tvg-id
+      const idMatch   = line.match(/tvg-id="([^"]+)"/);
+      // Extract tvg-logo
+      const logoMatch = line.match(/tvg-logo="([^"]+)"/);
+      // Extract group-title
+      const groupMatch = line.match(/group-title="([^"]+)"/);
+      // Channel name is after the last comma
+      const nameMatch = line.match(/,(.+)$/);
+
+      currentMeta = {
+        id:         idMatch   ? idMatch[1]   : '',
+        logo:       logoMatch ? logoMatch[1] : null,
+        group:      groupMatch ? groupMatch[1] : 'Sports',
+        name:       nameMatch ? nameMatch[1].trim() : 'Unknown Channel',
+        userAgent:  null,
+      };
+      currentUserAgent = null;
+
+    } else if (line.startsWith('#EXTVLCOPT:http-user-agent=')) {
+      // Some streams require a specific User-Agent header
+      currentUserAgent = line.replace('#EXTVLCOPT:http-user-agent=', '').trim();
+
+    } else if (line.startsWith('http') && currentMeta) {
+      // This is the actual stream URL
+      channels.push({
+        ...currentMeta,
+        userAgent: currentUserAgent || null,
+        url: line,
+      });
+      currentMeta = null;
+      currentUserAgent = null;
+
+    } else if (line.startsWith('#')) {
+      // Other comment lines — ignore
+    }
   }
+
+  return channels;
+}
+
+// ─── Fetch & Cache ────────────────────────────────────────────────────────────
+
+/**
+ * Fetch the iptv-org sports M3U playlist, parse it, and cache the result.
+ * Returns the cached version if it's still fresh (within CACHE_TTL_MS).
+ *
+ * @returns {Promise<Object[]>}  Array of parsed channel objects
+ */
+async function fetchSportsChannels() {
+  const now = Date.now();
+
+  // Return cache if still valid
+  if (cachedChannels && (now - cacheTimestamp) < CACHE_TTL_MS) {
+    console.log(`[API] Returning ${cachedChannels.length} cached channels`);
+    return cachedChannels;
+  }
+
+  console.log('[API] Fetching fresh sports channel list from iptv-org...');
 
   const attempt = async () => {
-    const res = await fetch(url, {
-      headers: { 'User-Agent': 'NuvioLiveSports/1.0' },
-      timeout: 8000,
+    const res = await fetch(SPORTS_M3U_URL, {
+      headers: { 'User-Agent': 'NuvioLiveSports/2.0' },
+      timeout: 15000,
     });
-    if (!res.ok) throw new Error(`HTTP ${res.status} for ${url}`);
-    return res.json();
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const text = await res.text();
+    return parseM3U(text);
   };
 
   try {
-    // First attempt
-    const data = await attempt();
-    cacheSet(cacheKey, data, ttlMs);
-    return data;
+    const channels = await attempt();
+    cachedChannels = channels;
+    cacheTimestamp = now;
+    console.log(`[API] Loaded ${channels.length} sports channels`);
+    return channels;
   } catch (err) {
-    console.warn(`[API] First attempt failed for ${url}: ${err.message}. Retrying in 1s…`);
-    await new Promise(r => setTimeout(r, 1000));
+    console.warn(`[API] Fetch failed: ${err.message}. Retrying in 2s...`);
+    await new Promise(r => setTimeout(r, 2000));
     try {
-      // Single retry
-      const data = await attempt();
-      cacheSet(cacheKey, data, ttlMs);
-      return data;
+      const channels = await attempt();
+      cachedChannels = channels;
+      cacheTimestamp = now;
+      console.log(`[API] Loaded ${channels.length} sports channels (retry)`);
+      return channels;
     } catch (retryErr) {
-      console.error(`[API] Retry also failed for ${url}: ${retryErr.message}. Returning [].`);
+      console.error(`[API] Retry failed: ${retryErr.message}`);
+      // Return stale cache if available rather than empty
+      if (cachedChannels) {
+        console.warn('[API] Returning stale cache as fallback');
+        return cachedChannels;
+      }
       return [];
     }
   }
 }
 
-// ─── Public API Methods ──────────────────────────────────────────────────────
-
 /**
- * Get all currently live matches.
- * @returns {Promise<import('./types').APIMatch[]>}
+ * Get all sports channels.
+ * @returns {Promise<Object[]>}
  */
-async function fetchLiveMatches() {
-  return apiFetch(`${BASE_URL}/matches/live`, 'live', TTL.LIVE);
+async function getAllChannels() {
+  return fetchSportsChannels();
 }
 
 /**
- * Get all matches scheduled for today.
- * @returns {Promise<import('./types').APIMatch[]>}
+ * Search channels by name (case-insensitive).
+ * @param {string} query
+ * @returns {Promise<Object[]>}
  */
-async function fetchTodayMatches() {
-  return apiFetch(`${BASE_URL}/matches/all-today`, 'today', TTL.TODAY);
+async function searchChannels(query) {
+  const channels = await fetchSportsChannels();
+  const q = query.toLowerCase();
+  return channels.filter(ch => ch.name.toLowerCase().includes(q));
 }
 
 /**
- * Get all upcoming/available matches.
- * @returns {Promise<import('./types').APIMatch[]>}
+ * Get a single channel by its sanitized ID.
+ * @param {string} channelId
+ * @returns {Promise<Object|null>}
  */
-async function fetchAllMatches() {
-  return apiFetch(`${BASE_URL}/matches/all`, 'all', TTL.ALL);
+async function getChannelById(channelId) {
+  const channels = await fetchSportsChannels();
+  return channels.find(ch => sanitizeId(ch) === channelId) || null;
 }
 
 /**
- * Get live popular matches only.
- * @returns {Promise<import('./types').APIMatch[]>}
- */
-async function fetchPopularMatches() {
-  return apiFetch(`${BASE_URL}/matches/live/popular`, 'popular', TTL.LIVE);
-}
-
-/**
- * Get matches filtered by sport category.
- * @param {string} sport  e.g. "football", "basketball", "tennis"
- * @returns {Promise<import('./types').APIMatch[]>}
- */
-async function fetchMatchesBySport(sport) {
-  return apiFetch(`${BASE_URL}/matches/${sport}`, `sport-${sport}`, TTL.SPORT);
-}
-
-/**
- * Get stream links for a specific match source.
- * @param {string} source  e.g. "alpha", "bravo"
- * @param {string} id      Source-specific match ID
- * @returns {Promise<import('./types').Stream[]>}
- */
-async function fetchStreams(source, id) {
-  return apiFetch(`${BASE_URL}/stream/${source}/${id}`, `stream-${source}-${id}`, TTL.STREAMS);
-}
-
-/**
- * Find a specific match by its original Streamed.pk ID.
- * Searches live → today → all matches in that priority order.
- * Returns null if the match cannot be found.
- *
- * @param {string} matchId  Original Streamed.pk match ID
- * @returns {Promise<import('./types').APIMatch|null>}
- */
-async function findMatchById(matchId) {
-  // Search in order of most-likely-live first
-  const searchSets = [
-    () => fetchLiveMatches(),
-    () => fetchTodayMatches(),
-    () => fetchAllMatches(),
-  ];
-
-  for (const fetchSet of searchSets) {
-    const matches = await fetchSet();
-    const found = matches.find(m => m.id === matchId);
-    if (found) return found;
-  }
-
-  return null;
-}
-
-/**
- * Build a full image URL for a badge path returned by the Streamed.pk API.
- * @param {string} badgePath  e.g. "man-utd-badge"
+ * Create a safe, unique ID for a channel to use in Nuvio item IDs.
+ * Replaces non-alphanumeric chars with hyphens.
+ * @param {Object} channel
  * @returns {string}
  */
-function getBadgeUrl(badgePath) {
-  if (!badgePath) return null;
-  // Some API responses already return full URLs
-  if (badgePath.startsWith('http')) return badgePath;
-  return `${BASE_URL}/images/badge/${badgePath}`;
+function sanitizeId(channel) {
+  // Use tvg-id if available, otherwise derive from name
+  const base = channel.id || channel.name;
+  return base.replace(/[^a-zA-Z0-9]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '').toLowerCase();
 }
 
-/**
- * Build a full image URL for a poster path returned by the Streamed.pk API.
- * @param {string} posterPath  e.g. "football-poster"
- * @returns {string}
- */
-function getPosterUrl(posterPath) {
-  if (!posterPath) return null;
-  if (posterPath.startsWith('http')) return posterPath;
-  return `${BASE_URL}/images/poster/${posterPath}`;
-}
-
-module.exports = {
-  fetchLiveMatches,
-  fetchTodayMatches,
-  fetchAllMatches,
-  fetchPopularMatches,
-  fetchMatchesBySport,
-  fetchStreams,
-  findMatchById,
-  getBadgeUrl,
-  getPosterUrl,
-};
+module.exports = { getAllChannels, searchChannels, getChannelById, sanitizeId };
