@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Nuvio Live Sports Debugger</title>
+  <style>
+    :root { --bg: #111; --card: #1c1c1e; --text: #f5f5f7; --accent: #ff3b30; }
+    body { font-family: -apple-system, sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 20px; }
+    h1 { margin-top: 0; font-weight: 800; letter-spacing: -1px; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 20px; }
+    .card { background: var(--card); border-radius: 12px; overflow: hidden; cursor: pointer; transition: transform 0.2s; position: relative; }
+    .card:hover { transform: scale(1.02); }
+    .poster-container { position: relative; width: 100%; aspect-ratio: 16/9; background: #000; display: flex; align-items: center; justify-content: center; overflow: hidden; }
+    .background { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; opacity: 0.3; filter: blur(10px); }
+    .poster { position: relative; z-index: 1; max-width: 100%; max-height: 100%; object-fit: contain; }
+    .logo { position: absolute; top: 10px; left: 10px; width: 40px; height: 40px; z-index: 2; border-radius: 8px; background: rgba(0,0,0,0.5); object-fit: contain; padding: 4px; }
+    .info { padding: 15px; }
+    .title { font-weight: 700; font-size: 1.1rem; margin-bottom: 5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .desc { font-size: 0.85rem; opacity: 0.7; white-space: pre-wrap; }
+    
+    #player-overlay { display: none; position: fixed; inset: 0; background: #000; z-index: 100; flex-direction: column; }
+    #close-btn { position: absolute; top: 20px; right: 20px; background: rgba(255,255,255,0.2); color: white; border: none; padding: 10px 20px; border-radius: 20px; cursor: pointer; z-index: 101; font-weight: bold; }
+    #video-container { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; position: relative; }
+    video { width: 100%; height: 100%; outline: none; }
+    .loader { position: absolute; color: white; font-weight: bold; }
+  </style>
+  <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
+</head>
+<body>
+
+  <h1>📡 Nuvio Live Sports Debugger</h1>
+  <div class="grid" id="grid"></div>
+
+  <div id="player-overlay">
+    <button id="close-btn">Close</button>
+    <div id="video-container">
+      <div class="loader" id="loader">Loading stream...</div>
+      <video id="video" controls autoplay></video>
+    </div>
+  </div>
+
+  <script>
+    let hls = null;
+
+    async function loadCatalog() {
+      try {
+        const res = await fetch('/catalog/tv/nuvio_sports_catalog.json');
+        const data = await res.json();
+        const grid = document.getElementById('grid');
+        
+        data.metas.forEach(meta => {
+          const card = document.createElement('div');
+          card.className = 'card';
+          card.onclick = () => playStream(meta.id);
+          
+          card.innerHTML = `
+            <div class="poster-container">
+              <img class="background" src="${meta.background}" onerror="this.style.display='none'">
+              <img class="poster" src="${meta.poster}" onerror="this.src='https://raw.githubusercontent.com/stremio/stremio-addon-sdk/master/docs/api/images/stremio-logo.png'">
+              ${meta.logo && meta.logo !== meta.poster ? `<img class="logo" src="${meta.logo}">` : ''}
+            </div>
+            <div class="info">
+              <div class="title">${meta.name}</div>
+              <div class="desc">${meta.description}</div>
+            </div>
+          `;
+          grid.appendChild(card);
+        });
+      } catch (err) {
+        console.error(err);
+        document.getElementById('grid').innerHTML = 'Failed to load catalog.';
+      }
+    }
+
+    async function playStream(id) {
+      document.getElementById('player-overlay').style.display = 'flex';
+      document.getElementById('loader').style.display = 'block';
+      const video = document.getElementById('video');
+      
+      try {
+        const res = await fetch(`/stream/tv/${id}.json`);
+        const data = await res.json();
+        
+        if (!data.streams || data.streams.length === 0) {
+          alert('No streams found for this match.');
+          closePlayer();
+          return;
+        }
+
+        const streamUrl = data.streams[0].url;
+        document.getElementById('loader').style.display = 'none';
+
+        if (Hls.isSupported()) {
+          if (hls) hls.destroy();
+          hls = new Hls({ maxBufferLength: 30 });
+          hls.loadSource(streamUrl);
+          hls.attachMedia(video);
+          hls.on(Hls.Events.MANIFEST_PARSED, () => video.play().catch(e=>console.log(e)));
+        } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
+          video.src = streamUrl;
+          video.play().catch(e=>console.log(e));
+        }
+      } catch (err) {
+        console.error(err);
+        alert('Error resolving stream.');
+        closePlayer();
+      }
+    }
+
+    function closePlayer() {
+      document.getElementById('player-overlay').style.display = 'none';
+      const video = document.getElementById('video');
+      video.pause();
+      video.src = '';
+      if (hls) {
+        hls.destroy();
+        hls = null;
+      }
+    }
+
+    document.getElementById('close-btn').onclick = closePlayer;
+    loadCatalog();
+  </script>
+</body>
+</html>
