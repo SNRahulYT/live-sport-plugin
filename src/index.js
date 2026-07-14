@@ -52,7 +52,7 @@ app.use(express.static(path.join(__dirname, '..', 'public')));
 
 // Mount the HLS Video Proxy (routes to the internal resolver on port 3000)
 app.use('/api', createProxyMiddleware({
-  target: 'http://localhost:3000',
+  target: 'http://localhost:3000/api',
   changeOrigin: true,
   logLevel: 'debug',
   onError: (err, req, res) => {
