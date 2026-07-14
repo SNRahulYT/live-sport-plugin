@@ -111,6 +111,59 @@ async function getAllMatches() {
     console.error('[API] Error fetching from Streamed.pk:', error.message);
   }
 
+  // 3. Fetch from BinTV (Third/Fallback) and group them
+  try {
+    const bintvRes = await axios.get('https://prabashsapkota.github.io/bintvjson/index.json', { timeout: 7000 });
+    if (Array.isArray(bintvRes.data)) {
+      bintvRes.data.forEach((s, index) => {
+        const title = s.name || s.title || `BinTV Event ${index}`;
+        
+        // Extract sources from keys like 'url_Sky Sports'
+        const bintvSources = [];
+        Object.keys(s).forEach(key => {
+          if (key.startsWith('url_') && s[key]) {
+            const streamName = key.replace('url_', '').trim();
+            bintvSources.push({
+              source: 'bintv',
+              id: streamName,
+              url: s[key] // The direct URL, m3u8, or iframe
+            });
+          }
+        });
+
+        if (bintvSources.length === 0) return;
+
+        const binEvent = {
+          id: `bintv_${index}_${normalizeStr(title).substring(0, 10)}`,
+          title: title,
+          category: normalizeCategory(s.category),
+          date: Date.now().toString(), // BinTV JSON doesn't provide precise unix timestamps, just 'Live' string
+          popular: '0',
+          sources: bintvSources,
+          league: '',
+          team1: null,
+          team2: null,
+          thumbnail_url: s.logo || ''
+        };
+
+        // Try to find a matching event in unifiedEvents
+        const existingMatch = unifiedEvents.find(e => isSameEvent(e, binEvent));
+
+        if (existingMatch) {
+          existingMatch.sources = [...existingMatch.sources, ...binEvent.sources];
+          if (!existingMatch.thumbnail_url && binEvent.thumbnail_url) {
+            existingMatch.thumbnail_url = binEvent.thumbnail_url;
+          }
+        } else {
+          unifiedEvents.push(binEvent);
+        }
+      });
+    }
+  } catch (error) {
+    console.error('[API] Error fetching from BinTV:', error.message);
+  }
+
+  console.log(`[API] Fetched ${unifiedEvents.length} total events`);
   return unifiedEvents;
 }
 

@@ -101,6 +101,57 @@ async function handleStream(type, id) {
       continue;
     }
 
+    if (sourceName === 'bintv') {
+      let url = src.url;
+      
+      // Clean up noooooads wrappers if they contain a direct m3u8 payload
+      if (url.includes('noooooads/?src=') && url.includes('.m3u8')) {
+        url = decodeURIComponent(url.split('?src=')[1]);
+      }
+
+      // 1. Direct M3U8 Links (e.g. Rumble CDN)
+      if (url.includes('.m3u8')) {
+        // Just return it natively!
+        streams.push({
+          name: 'Nuvio Direct',
+          title: `BinTV (${src.id})`,
+          url: url
+        });
+        continue;
+      }
+      
+      // 2. StreamFree Links inside BinTV
+      if (url.includes('streamfree.top/embed')) {
+        try {
+          const urlObj = new URL(url);
+          const parts = urlObj.pathname.split('/').filter(Boolean);
+          // e.g. /embed/cricket/skycricket -> parts = ['embed', 'cricket', 'skycricket']
+          if (parts.length >= 3) {
+            const cat = parts[1];
+            const streamKey = parts[2];
+            const sfStream = await resolveStreamFree(cat, streamKey);
+            if (sfStream) {
+              sfStream.title = `BinTV StreamFree (${src.id})`;
+              streams.push(sfStream);
+            }
+          }
+        } catch (e) {
+          console.error('[Streams] Failed to parse BinTV StreamFree URL', url);
+        }
+        continue;
+      }
+
+      // 3. Unrecognized Embeds (e.g. dlhd.st, ritzembeds)
+      // Use Stremio's externalUrl property alongside our /watch proxy
+      const externalUrl = `${BASE_URL}/watch?url=${encodeURIComponent(url)}&title=${encodeURIComponent(match.title)}`;
+      streams.push({
+        name: 'Nuvio Web Player',
+        title: `BinTV External (${src.id})`,
+        externalUrl: externalUrl
+      });
+      continue;
+    }
+
     // By passing the embed.st URL directly, we completely bypass the streamed.pk watch page
     // which doesn't exist for streamfree matches. The resolver will happily crack the lock!
     const watchUrl = `https://embed.st/embed/${sourceName}/${src.id}/${streamNo}`;
