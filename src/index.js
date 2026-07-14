@@ -46,6 +46,9 @@ const app = express();
 
 app.use(cors());
 
+// Serve the web debugger UI
+app.use(express.static(path.join(__dirname, '..', 'public')));
+
 // Mount the HLS Video Proxy (routes to the internal resolver on port 3000)
 app.use('/api', createProxyMiddleware({
   target: 'http://localhost:3000/api',

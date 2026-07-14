@@ -19,13 +19,15 @@ async function handleStream(type, id) {
 
   const streams = [];
 
-  for (const src of match.sources) {
-    const sourceName = src.source; // e.g. "admin" or "echo"
-    const streamNo = '1'; // Assume stream 1 for now
-
-    const watchUrl = `https://streamed.pk/watch/${matchId}/${sourceName}/${streamNo}`;
-    
-    try {
+    for (const src of match.sources) {
+      const sourceName = src.source; // e.g. "admin" or "echo"
+      const streamNo = '1'; // Assume stream 1 for now
+  
+      // By passing the embed.st URL directly, we completely bypass the streamed.pk watch page
+      // which doesn't exist for streamfree matches. The resolver will happily crack the lock!
+      const watchUrl = `https://embed.st/embed/${sourceName}/${src.id}/${streamNo}`;
+      
+      try {
       // Call our internal stream resolver running on port 3000
       const resolveRes = await axios.post('http://localhost:3000/api/stream', { url: watchUrl }, { timeout: 15000 });
       

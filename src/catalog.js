@@ -3,13 +3,13 @@ const { getAllMatches } = require('./api');
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function mapMatchToMetaPreview(match) {
-  // Use team1 logo as poster, otherwise fallback
+  // Use StreamFree thumbnail_url as the primary poster for a beautiful side-by-side graphic
   const genericPoster = 'https://raw.githubusercontent.com/stremio/stremio-addon-sdk/master/docs/api/images/stremio-logo.png';
   let poster = genericPoster;
-  if (match.team1 && match.team1.logo) {
-    poster = match.team1.logo;
-  } else if (match.thumbnail_url) {
+  if (match.thumbnail_url) {
     poster = `https://streamfree.top${match.thumbnail_url}`;
+  } else if (match.team1 && match.team1.logo) {
+    poster = match.team1.logo;
   }
 
   // Use team2 logo or thumbnail as background
@@ -40,6 +40,7 @@ function mapMatchToMetaPreview(match) {
     poster: poster,
     posterShape: 'landscape', // ESPN logos are often transparent/square, landscape works best generally
     background: background,
+    logo: match.team1 && match.team1.logo ? match.team1.logo : poster,
     description: `League: ${match.league || 'Unknown'}\nCategory: ${match.category}\nMatch Time: ${timeString}`,
   };
 }
