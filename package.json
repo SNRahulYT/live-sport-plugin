@@ -1,0 +1,25 @@
+{
+  "name": "nuvio-live-sports-plugin",
+  "version": "1.0.0",
+  "description": "Live sports streaming add-on for Nuvio/Stremio powered by Streamed.pk",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "node --watch src/index.js"
+  },
+  "dependencies": {
+    "stremio-addon-sdk": "^1.6.10",
+    "node-fetch": "^2.7.0"
+  },
+  "engines": {
+    "node": ">=16.0.0"
+  },
+  "keywords": [
+    "nuvio",
+    "stremio",
+    "addon",
+    "live-sports",
+    "sports-streaming"
+  ],
+  "license": "MIT"
+}
