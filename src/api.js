@@ -46,10 +46,20 @@ function isSameEvent(e1, e2) {
   return similarity >= 0.4;
 }
 
+let cachedMatches = [];
+let lastFetchTime = 0;
+const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+
 /**
  * Fetch all active matches from both sources and merge them into unified events
  */
 async function getAllMatches() {
+  const now = Date.now();
+  if (cachedMatches.length > 0 && (now - lastFetchTime) < CACHE_TTL) {
+    console.log('[API] Returning cached matches');
+    return cachedMatches;
+  }
+
   const unifiedEvents = [];
 
   // 1. Fetch from StreamFree.top (Primary - has logos)
@@ -214,6 +224,8 @@ async function getAllMatches() {
   }
 
   console.log(`[API] Fetched ${unifiedEvents.length} total events`);
+  cachedMatches = unifiedEvents;
+  lastFetchTime = Date.now();
   return unifiedEvents;
 }
 

@@ -104,17 +104,14 @@ async function handleStream(type, id) {
 
     if (sourceName === 'bintv') {
       let url = src.url;
-      console.log(`[Streams] Processing bintv source: ${src.id}, url: ${url}`);
       
       // Clean up noooooads wrappers if they contain a direct m3u8 payload
       if (url && url.includes('noooooads/?src=') && url.includes('.m3u8')) {
         url = decodeURIComponent(url.split('?src=')[1]);
-        console.log(`[Streams] Cleaned m3u8 url: ${url}`);
       }
 
       // 1. Direct M3U8 Links (e.g. Rumble CDN)
       if (url && url.includes('.m3u8')) {
-        console.log(`[Streams] Matched direct m3u8`);
         // Just return it natively!
         streams.push({
           name: 'Nuvio Direct',
@@ -126,7 +123,6 @@ async function handleStream(type, id) {
       
       // 2. StreamFree Links inside BinTV
       if (url && url.includes('streamfree.top/embed')) {
-        console.log(`[Streams] Matched streamfree inside bintv`);
         try {
           const urlObj = new URL(url);
           const parts = urlObj.pathname.split('/').filter(Boolean);
@@ -147,7 +143,6 @@ async function handleStream(type, id) {
       }
 
       // 3. Unrecognized Embeds (e.g. dlhd.st, ritzembeds)
-      console.log(`[Streams] Matched external url: ${url}`);
       // Use Stremio's externalUrl property alongside our /watch proxy
       const externalUrl = `${BASE_URL}/watch?url=${encodeURIComponent(url)}&title=${encodeURIComponent(match.title)}`;
       streams.push({

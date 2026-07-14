@@ -7,8 +7,11 @@ function mapMatchToMetaPreview(match) {
   const safeTitle = encodeURIComponent((match.title || 'Live Match').substring(0, 30));
   const fallbackPoster = `https://placehold.co/800x450/111111/ef4444.png?text=${safeTitle}&font=Montserrat`;
   
-  let poster = match.thumbnail_url ? `https://streamfree.top${match.thumbnail_url}` : fallbackPoster;
-  let background = match.thumbnail_url ? `https://streamfree.top${match.thumbnail_url}` : fallbackPoster;
+  let poster = fallbackPoster;
+  if (match.thumbnail_url) {
+    poster = match.thumbnail_url.startsWith('http') ? match.thumbnail_url : `https://streamfree.top${match.thumbnail_url}`;
+  }
+  let background = poster;
 
   let dateObj = new Date();
   if (match.date && !isNaN(parseInt(match.date))) {
@@ -56,13 +59,32 @@ async function handleCatalog(type, id, extra) {
     filteredMatches = matches.filter(m => m.category === categoryMatch);
   }
 
-  const metas = filteredMatches.map(mapMatchToMetaPreview);
+  // Smart Sorting
+  const now = Date.now();
+  filteredMatches.sort((a, b) => {
+    const aIsLive = a.popular === '1' ? 1 : 0;
+    const bIsLive = b.popular === '1' ? 1 : 0;
+    
+    // 1. Live events first
+    if (aIsLive !== bIsLive) return bIsLive - aIsLive;
+    
+    // 2. Upcoming matches chronologically (closest first)
+    const dateA = a.date ? parseInt(a.date) : 0;
+    const dateB = b.date ? parseInt(b.date) : 0;
+    
+    return dateA - dateB;
+  });
 
-  // Stremio supports search in catalogs
+  let metas = filteredMatches.map(mapMatchToMetaPreview);
+
+  // Deep Search
   if (extra && extra.search) {
     const q = extra.search.toLowerCase();
-    const filtered = metas.filter(m => m.name.toLowerCase().includes(q));
-    return { metas: filtered };
+    metas = metas.filter(m => 
+      m.name.toLowerCase().includes(q) || 
+      (m.description && m.description.toLowerCase().includes(q)) ||
+      (m.cast && m.cast.some(c => c.toLowerCase().includes(q)))
+    );
   }
 
   return { metas };
