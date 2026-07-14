@@ -18,7 +18,12 @@ function normalizeStr(str) {
 }
 
 function isSameEvent(e1, e2) {
-  if (e1.category !== e2.category) return false;
+  // If categories differ and neither is 'other' or empty, they probably aren't the same
+  if (e1.category && e2.category && 
+      e1.category !== 'other' && e2.category !== 'other' && 
+      e1.category !== e2.category) {
+    return false;
+  }
   
   // Check if dates are within 24 hours of each other
   const d1 = parseInt(e1.date) || 0;
@@ -65,7 +70,7 @@ async function getAllMatches() {
               team1: s.team1,
               team2: s.team2,
               thumbnail_url: s.thumbnail_url,
-              sources: [{ source: 'streamfree', id: id }]
+              sources: [{ source: 'streamfree', id: id, original_category: category }]
             });
           });
         }
@@ -161,6 +166,51 @@ async function getAllMatches() {
     }
   } catch (error) {
     console.error('[API] Error fetching from BinTV:', error.message);
+  }
+
+  // 4. Fetch from Streamed-Images JSON (Additional BinTV Sources)
+  try {
+    const extraRes = await axios.get('https://prabashsapkota.github.io/Streamed-images-json/index.json', { timeout: 7000 });
+    if (extraRes.data && Array.isArray(extraRes.data.matches)) {
+      extraRes.data.matches.forEach((s, index) => {
+        const title = s.title || `Extra Event ${index}`;
+        
+        if (!Array.isArray(s.url) || s.url.length === 0) return;
+
+        const extraSources = s.url.map(stream => ({
+          source: 'bintv',
+          id: stream.source || 'Stream',
+          url: stream.url
+        }));
+
+        const extraEvent = {
+          id: `extra_${index}_${normalizeStr(title).substring(0, 10)}`,
+          title: title,
+          category: 'other', // Often missing in this JSON
+          date: Date.now().toString(),
+          popular: '0',
+          sources: extraSources,
+          league: '',
+          team1: null,
+          team2: null,
+          thumbnail_url: s.poster || ''
+        };
+
+        // Try to find a matching event in unifiedEvents
+        const existingMatch = unifiedEvents.find(e => isSameEvent(e, extraEvent));
+
+        if (existingMatch) {
+          existingMatch.sources = [...existingMatch.sources, ...extraEvent.sources];
+          if (!existingMatch.thumbnail_url && extraEvent.thumbnail_url) {
+            existingMatch.thumbnail_url = extraEvent.thumbnail_url;
+          }
+        } else {
+          unifiedEvents.push(extraEvent);
+        }
+      });
+    }
+  } catch (error) {
+    console.error('[API] Error fetching from Streamed-Images JSON:', error.message);
   }
 
   console.log(`[API] Fetched ${unifiedEvents.length} total events`);
