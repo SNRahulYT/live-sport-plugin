@@ -1,5 +1,7 @@
 # 🔴 Nuvio Live Sports Plugin
 
+[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy)
+
 A **live sports streaming add-on** for [Nuvio](https://nuvio.tv) powered by the [Streamed.pk](https://streamed.pk) public API. Browse and watch live football, basketball, tennis, cricket, and more — directly from inside Nuvio.
 
 > **For personal / educational use only.**
@@ -43,7 +45,51 @@ A **live sports streaming add-on** for [Nuvio](https://nuvio.tv) powered by the 
 
 ---
 
-## 🚀 Installation & Setup
+## ☁️ Deploy to Render (Recommended — Public URL)
+
+Deploying to Render gives you a **permanent public URL** like `https://nuvio-live-sports.onrender.com/manifest.json` that works on any device without running anything locally.
+
+### Step 1 — Push code to GitHub
+
+1. Go to [github.com/new](https://github.com/new) and create a new **public** repository  
+   (e.g. `nuvio-live-sports-plugin`)
+2. Copy the remote URL shown (e.g. `https://github.com/YOUR_USERNAME/nuvio-live-sports-plugin.git`)
+3. Link your local repo and push:
+
+```bash
+git remote add origin https://github.com/YOUR_USERNAME/nuvio-live-sports-plugin.git
+git branch -M main
+git push -u origin main
+```
+
+### Step 2 — Deploy on Render
+
+1. Go to [render.com](https://render.com) → Sign up free (GitHub login works)
+2. Click **"New +"** → **"Web Service"**
+3. Connect your GitHub repo (`nuvio-live-sports-plugin`)
+4. Render detects `render.yaml` automatically — just click **"Deploy"**
+5. Wait ~2 minutes for the first deploy to finish
+6. Your public manifest URL will be:
+   ```
+   https://nuvio-live-sports.onrender.com/manifest.json
+   ```
+   *(the exact subdomain is shown in your Render dashboard)*
+
+### Step 3 — Add to Nuvio
+
+1. Open **Nuvio** → **Settings → Addons**
+2. Paste your Render manifest URL:
+   ```
+   https://nuvio-live-sports.onrender.com/manifest.json
+   ```
+3. Click **Install** — done! 🎉
+
+> [!NOTE]
+> **Free tier cold starts:** Render's free tier spins down after 15 minutes of inactivity. The first request after idle may take ~30 seconds to wake up. After that it's fast.
+
+---
+
+## 🚀 Local Installation & Setup
 
 ### Prerequisites
 
