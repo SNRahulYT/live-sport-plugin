@@ -33,6 +33,7 @@ const resolverProcess = spawn('node', [resolverPath], {
   env: { ...process.env, PORT: '3000', BASE_URL: BASE_URL }
 });
 resolverProcess.on('error', (err) => console.error('Resolver spawn error:', err));
+resolverProcess.on('exit', (code, signal) => console.error(`[FATAL] Resolver process exited with code ${code} and signal ${signal}. Streams will not work until restarted.`));
 
 // ─── Register Addon Handlers ──────────────────────────────────────────────────
 
@@ -52,7 +53,14 @@ app.use(express.static(path.join(__dirname, '..', 'public')));
 // Mount the HLS Video Proxy (routes to the internal resolver on port 3000)
 app.use('/api', createProxyMiddleware({
   target: 'http://localhost:3000',
-  changeOrigin: true
+  changeOrigin: true,
+  logLevel: 'debug',
+  onError: (err, req, res) => {
+    console.error('[Proxy Error] Failed to proxy /api request to internal resolver:', err.message);
+    if (!res.headersSent) {
+      res.status(502).send('Bad Gateway: Internal stream resolver is not responding.');
+    }
+  }
 }));
 
 // Mount the Stremio addon router
