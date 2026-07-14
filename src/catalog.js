@@ -3,14 +3,34 @@ const { getAllMatches } = require('./api');
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function mapMatchToMetaPreview(match) {
-  // Use a generic placeholder poster
-  const poster = 'https://raw.githubusercontent.com/stremio/stremio-addon-sdk/master/docs/api/images/stremio-logo.png';
+  // Use team1 logo as poster, otherwise fallback
+  const genericPoster = 'https://raw.githubusercontent.com/stremio/stremio-addon-sdk/master/docs/api/images/stremio-logo.png';
+  let poster = genericPoster;
+  if (match.team1 && match.team1.logo) {
+    poster = match.team1.logo;
+  } else if (match.thumbnail_url) {
+    poster = `https://streamfree.top${match.thumbnail_url}`;
+  }
 
-  const dateObj = new Date(match.date);
+  // Use team2 logo or thumbnail as background
+  let background = genericPoster;
+  if (match.team2 && match.team2.logo) {
+    background = match.team2.logo;
+  } else if (match.thumbnail_url) {
+    background = `https://streamfree.top${match.thumbnail_url}`;
+  }
+
+  // Convert the date
+  let dateObj = new Date();
+  if (match.date && !isNaN(parseInt(match.date))) {
+     dateObj = new Date(parseInt(match.date));
+  } else if (match.date) {
+     dateObj = new Date(match.date);
+  }
   const timeString = dateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
   // Add [LIVE] tag if popular/live
-  const prefix = match.popular ? '🔴 [LIVE] ' : '';
+  const prefix = match.popular === '1' ? '🔴 [LIVE] ' : '';
 
   return {
     id: `nuvio_sport_${match.id}`, // Custom prefix to differentiate
@@ -18,9 +38,9 @@ function mapMatchToMetaPreview(match) {
     name: `${prefix}${match.title}`,
     genres: [match.category],
     poster: poster,
-    posterShape: 'landscape',
-    background: poster,
-    description: `Category: ${match.category}\nMatch Time: ${timeString}\nPopular: ${match.popular ? 'Yes' : 'No'}`,
+    posterShape: 'landscape', // ESPN logos are often transparent/square, landscape works best generally
+    background: background,
+    description: `League: ${match.league || 'Unknown'}\nCategory: ${match.category}\nMatch Time: ${timeString}`,
   };
 }
 
