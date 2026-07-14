@@ -22,16 +22,15 @@ const manifest = {
   catalogs: [
     {
       type: 'tv',
-      id: 'sports-all',
-      name: '📡 All Sports Channels',
+      id: 'nuvio_sports_catalog',
+      name: '📡 Live Sports',
       extra: [
-        { name: 'search', isRequired: false },
-        { name: 'skip',   isRequired: false },
+        { name: 'search', isRequired: false }
       ],
     },
   ],
 
-  idPrefixes: ['iptv-'],
+  idPrefixes: ['nuvio_sport_'],
 
   behaviorHints: {
     adult: false,
