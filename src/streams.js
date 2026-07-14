@@ -89,7 +89,23 @@ async function handleStream(type, id) {
 
   const streams = [];
 
-  for (const src of match.sources) {
+  // Priority order: Streamed.pk > StreamFree > TimStreams > BinTV Direct > BinTV External
+  const SOURCE_PRIORITY = { admin: 1, echo: 1, golf: 1, 'streamfree': 2, 'timstreams': 3, 'bintv': 4 };
+  const sortedSources = [...match.sources].sort((a, b) => {
+    const pa = SOURCE_PRIORITY[a.source] ?? 99;
+    const pb = SOURCE_PRIORITY[b.source] ?? 99;
+    if (pa !== pb) return pa - pb;
+    // Within bintv, direct m3u8 links beat web players (checked by url content)
+    if (a.source === 'bintv' && b.source === 'bintv') {
+      const aIsDirect = a.url && (a.url.includes('.m3u8') || (a.url.includes('noooooads/?src=') && a.url.includes('.m3u8')));
+      const bIsDirect = b.url && (b.url.includes('.m3u8') || (b.url.includes('noooooads/?src=') && b.url.includes('.m3u8')));
+      if (aIsDirect && !bIsDirect) return -1;
+      if (!aIsDirect && bIsDirect) return 1;
+    }
+    return 0;
+  });
+
+  for (const src of sortedSources) {
     const sourceName = src.source; // e.g. "admin" or "echo" or "streamfree"
     const streamNo = '1'; // Assume stream 1 for now
 
