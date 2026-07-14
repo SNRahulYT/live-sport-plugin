@@ -6,9 +6,12 @@ const STREAMFREE_API = 'https://streamfree.top/streams';
 function normalizeCategory(cat) {
   if (!cat) return 'other';
   cat = cat.toLowerCase().replace(/[^a-z0-9]/g, '');
-  if (cat.includes('soccer')) return 'football';
-  if (cat.includes('motor')) return 'motorsport';
-  if (cat.includes('american')) return 'american_football';
+  if (cat.includes('soccer') || cat.includes('football')) return 'football';
+  if (cat.includes('motor') || cat.includes('racing') || cat.includes('cycling')) return 'motorsport';
+  if (cat.includes('americanfootball') || cat.includes('afl') || cat.includes('gridiron')) return 'american_football';
+  if (cat.includes('fight') || cat.includes('mma') || cat.includes('boxing') || cat.includes('wrestling') || cat.includes('knuckle')) return 'other';
+  if (cat.includes('liveshow') || cat.includes('uncategorized')) return 'other';
+  if (cat.includes('rugby')) return 'rugby';
   return cat;
 }
 

@@ -1,5 +1,5 @@
 const axios = require('axios');
-const { getMatchStreams, getAllMatches } = require('./api');
+const { getAllMatches } = require('./api');
 const { BASE_URL } = require('./config');
 
 async function resolveStreamFree(category, streamKey) {
@@ -90,7 +90,7 @@ async function handleStream(type, id) {
   const streams = [];
 
   // Priority order: Streamed.pk > StreamFree > TimStreams > BinTV Direct > BinTV External
-  const SOURCE_PRIORITY = { admin: 1, echo: 1, golf: 1, 'streamfree': 2, 'timstreams': 3, 'bintv': 4 };
+  const SOURCE_PRIORITY = { admin: 1, echo: 1, golf: 1, delta: 1, 'streamfree': 2, 'timstreams': 3, 'bintv': 4 };
   const sortedSources = [...match.sources].sort((a, b) => {
     const pa = SOURCE_PRIORITY[a.source] ?? 99;
     const pb = SOURCE_PRIORITY[b.source] ?? 99;

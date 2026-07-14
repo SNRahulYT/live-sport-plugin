@@ -9,7 +9,7 @@ const { addonBuilder } = require('stremio-addon-sdk');
 
 const manifest = {
   id: 'community.nuvio.live-sports',
-  version: '2.0.0',
+  version: '2.1.0',
   name: '📡 Live Sports TV',
   description:
     'Free live sports TV channels — beIN Sports, Eurosport, Alkass, ESPN & more. ' +
@@ -25,6 +25,7 @@ const manifest = {
     { type: 'tv', id: 'nuvio_sports_motorsport', name: '🏎️ Motorsport', extra: [{ name: 'search', isRequired: false }] },
     { type: 'tv', id: 'nuvio_sports_basketball', name: '🏀 Basketball', extra: [{ name: 'search', isRequired: false }] },
     { type: 'tv', id: 'nuvio_sports_american_football', name: '🏈 American Football', extra: [{ name: 'search', isRequired: false }] },
+    { type: 'tv', id: 'nuvio_sports_rugby', name: '🏉 Rugby', extra: [{ name: 'search', isRequired: false }] },
     { type: 'tv', id: 'nuvio_sports_other', name: '📡 Other Sports', extra: [{ name: 'search', isRequired: false }] },
   ],
 

@@ -53,15 +53,15 @@ async function handleCatalog(type, id, extra) {
   
   let filteredMatches = matches;
   if (categoryMatch === 'other') {
-    const knownCats = ['football', 'cricket', 'motorsport', 'basketball', 'american_football'];
+    // 'other' shows everything that doesn't have a dedicated tab
+    const knownCats = ['football', 'cricket', 'motorsport', 'basketball', 'american_football', 'rugby', 'baseball', 'tennis', 'hockey', 'darts', 'golf'];
     filteredMatches = matches.filter(m => !knownCats.includes(m.category));
   } else if (categoryMatch !== 'catalog') {
     filteredMatches = matches.filter(m => m.category === categoryMatch);
   }
 
-  // Smart Sorting
-  const now = Date.now();
-  filteredMatches.sort((a, b) => {
+  // Smart Sorting — sort a copy to avoid mutating the shared cached array
+  filteredMatches = [...filteredMatches].sort((a, b) => {
     const aIsLive = a.popular === '1' ? 1 : 0;
     const bIsLive = b.popular === '1' ? 1 : 0;
     
