@@ -20,6 +20,7 @@
 
 const fetch = require('node-fetch');
 const { fetchStreams, findMatchById } = require('./api');
+const { BASE_URL } = require('./config');
 
 // ─── HLS URL Extraction ──────────────────────────────────────────────────────
 
@@ -132,19 +133,29 @@ function buildNativeStream(stream, hlsUrl) {
 }
 
 /**
- * Build a Stremio stream object for browser playback (externalUrl).
- * @param {Object} stream  Streamed.pk stream object
+ * Build a Stremio stream object for browser playback via our /watch proxy page.
+ * Instead of pointing directly at the embed.st URL (which has origin restrictions),
+ * we point to OUR server's /watch route which wraps it in a clean iframe.
+ *
+ * @param {Object} stream     Streamed.pk stream object
+ * @param {string} matchTitle Match title for the watch page heading
  * @returns {Object}
  */
-function buildBrowserStream(stream) {
+function buildBrowserStream(stream, matchTitle) {
   const qualityBadge = stream.hd ? '🔵 HD' : '⚪ SD';
   const langFlag = stream.language || 'Unknown';
   const sourceName = formatSource(stream.source);
 
+  // Build our proxy URL — Nuvio opens this in the browser, which then
+  // renders the embed in a clean full-screen iframe page served by us
+  const watchUrl = `${BASE_URL}/watch`
+    + `?url=${encodeURIComponent(stream.embedUrl)}`
+    + `&title=${encodeURIComponent(matchTitle || 'Live Sports')}`;
+
   return {
     name: `🌐 Open in Browser\n${sourceName} · Stream ${stream.streamNo}`,
     title: `${qualityBadge} · ${langFlag} · Browser Player`,
-    externalUrl: stream.embedUrl,
+    externalUrl: watchUrl,
   };
 }
 
@@ -211,6 +222,9 @@ async function handleStream(type, id) {
   // Sort: HD English first
   const sorted = sortStreams(allStreams);
 
+  // Store match title for the watch page
+  const matchTitle = match.title || 'Live Sports';
+
   console.log(`[Streams] Processing ${sorted.length} stream(s), attempting HLS extraction…`);
 
   // For each stream: attempt HLS extraction, then build both stream entries
@@ -235,9 +249,9 @@ async function handleStream(type, id) {
       stremioStreams.push(buildNativeStream(stream, hlsUrl));
     }
 
-    // 2. Always add a browser fallback entry (externalUrl)
+    // 2. Always add a browser fallback via our /watch proxy page
     if (stream.embedUrl) {
-      stremioStreams.push(buildBrowserStream(stream));
+      stremioStreams.push(buildBrowserStream(stream, matchTitle));
     }
   }
 
