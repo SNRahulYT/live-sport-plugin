@@ -1,62 +1,51 @@
 /**
  * index.js — Nuvio Live Sports Plugin Entry Point
  *
- * Uses the stremio-addon-sdk's getRouter() to mount the addon onto a
- * custom Express server, so we can also serve a /watch proxy page.
+ * Builds a single Express server that serves:
+ *   - /manifest.json          → addon manifest (via SDK getRouter)
+ *   - /catalog/tv/*.json      → match lists
+ *   - /meta/tv/*.json         → match detail
+ *   - /stream/tv/*.json       → stream URLs
+ *   - /watch                  → HTML proxy page for embed streams
  *
- * The /watch page is the key fix for embed URLs:
- *   - embed.st URLs have referrer/origin restrictions
- *   - When opened raw they may fail in Nuvio's webview / browser
- *   - Instead, externalUrl points to OUR /watch?url=... page
- *   - Our page embeds the stream in a clean full-screen iframe
- *   - This sidesteps the referrer restrictions reliably
- *
- * Install in Nuvio:
- *   1. Deploy to Render (see README) → get your public URL
- *   2. In Nuvio → Settings → Addons → paste:
- *      https://your-app.onrender.com/manifest.json
+ * CORS headers are explicitly set so Nuvio can reach the manifest
+ * from any origin without a networkError_manifestLoadError.
  */
 
 const express = require('express');
+const cors    = require('cors');
 const { addonBuilder, getRouter } = require('stremio-addon-sdk');
 
-const { builder }       = require('./manifest');
+const { builder }                 = require('./manifest');
 const { handleCatalog, handleMeta } = require('./catalog');
-const { handleStream }  = require('./streams');
-const { PORT, BASE_URL } = require('./config');
+const { handleStream }            = require('./streams');
+const { PORT, BASE_URL }          = require('./config');
 
 // ─── Register Addon Handlers ──────────────────────────────────────────────────
 
-// Catalog: Nuvio browses a sport category row
-builder.defineCatalogHandler(({ type, id, extra }) => {
-  return handleCatalog(type, id, extra);
-});
+builder.defineCatalogHandler(({ type, id, extra }) => handleCatalog(type, id, extra));
+builder.defineMetaHandler(({ type, id })           => handleMeta(type, id));
+builder.defineStreamHandler(({ type, id })         => handleStream(type, id));
 
-// Meta: Nuvio shows the match detail / info screen
-builder.defineMetaHandler(({ type, id }) => {
-  return handleMeta(type, id);
-});
-
-// Stream: Nuvio wants playable URLs for a match
-builder.defineStreamHandler(({ type, id }) => {
-  return handleStream(type, id);
-});
-
-// ─── Build the Express App ────────────────────────────────────────────────────
+// ─── Build Express App ────────────────────────────────────────────────────────
 
 const app = express();
 
-// Mount the stremio-addon-sdk router (handles /manifest.json, /catalog/*, /stream/*, etc.)
+// Global CORS — required so Nuvio (running on any origin/device) can
+// load /manifest.json without a networkError_manifestLoadError
+app.use(cors());
+
+// Mount the Stremio addon router (handles /manifest.json, /catalog/*, /stream/*, /meta/*)
 app.use(getRouter(builder.getInterface()));
 
 // ─── /watch — Embed Proxy Page ────────────────────────────────────────────────
-//
-// Serves a full-screen HTML page that wraps an embed URL in an iframe.
-// This is what externalUrl points to for every stream entry.
+// When the user clicks a stream, Nuvio opens this URL in the browser.
+// It serves a clean full-screen HTML page that wraps the embed in an iframe,
+// bypassing the referrer/origin restrictions that the raw embed.st URLs have.
 //
 // Query params:
-//   ?url=<encoded embed URL>     — the stream embed URL to display
-//   ?title=<encoded match title> — shown in the page <title> and header
+//   ?url=<encoded embed URL>     the stream embed to display
+//   ?title=<encoded match title> shown in the page heading
 
 app.get('/watch', (req, res) => {
   const embedUrl = req.query.url;
@@ -66,7 +55,7 @@ app.get('/watch', (req, res) => {
     return res.status(400).send('Missing ?url parameter');
   }
 
-  // Security: only allow http/https URLs
+  // Validate — only allow http/https URLs
   let safeUrl;
   try {
     const parsed = new URL(decodeURIComponent(embedUrl));
@@ -84,117 +73,74 @@ app.get('/watch', (req, res) => {
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;');
 
-  // Serve the HTML proxy page
-  // CSP is deliberately relaxed for iframes so the embed can load its own scripts
   res.setHeader('Content-Type', 'text/html; charset=utf-8');
-  res.setHeader('X-Frame-Options', 'SAMEORIGIN');
   res.send(`<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
-  <!-- Tell the embed page we're coming from streamed.pk so it doesn't block us -->
   <meta name="referrer" content="no-referrer-when-downgrade">
-  <title>🔴 ${safeTitle} | Live Sports</title>
+  <title>\uD83D\uDD34 ${safeTitle} | Live Sports</title>
   <style>
     *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body { width: 100%; height: 100%; background: #000; overflow: hidden;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
 
-    html, body {
-      width: 100%;
-      height: 100%;
-      background: #000;
-      overflow: hidden;
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-    }
-
-    /* Top bar shown briefly then hidden */
     #topbar {
-      position: fixed;
-      top: 0; left: 0; right: 0;
-      z-index: 10;
-      background: linear-gradient(to bottom, rgba(0,0,0,0.85) 0%, transparent 100%);
-      padding: 12px 20px;
-      color: #fff;
-      font-size: 14px;
-      font-weight: 600;
-      display: flex;
-      align-items: center;
-      gap: 10px;
+      position: fixed; top: 0; left: 0; right: 0; z-index: 10;
+      background: linear-gradient(to bottom, rgba(0,0,0,0.85), transparent);
+      padding: 12px 20px; color: #fff; font-size: 14px; font-weight: 600;
+      display: flex; align-items: center; gap: 10px;
       animation: fadeOut 1s ease 4s forwards;
     }
-
     #topbar .dot {
-      width: 10px; height: 10px;
-      background: #f44;
-      border-radius: 50%;
+      width: 10px; height: 10px; background: #f44;
+      border-radius: 50%; flex-shrink: 0;
       animation: pulse 1s infinite;
-      flex-shrink: 0;
     }
-
     @keyframes pulse {
       0%, 100% { opacity: 1; transform: scale(1); }
-      50% { opacity: 0.5; transform: scale(1.2); }
+      50%       { opacity: 0.5; transform: scale(1.3); }
     }
-    @keyframes fadeOut {
-      to { opacity: 0; pointer-events: none; }
-    }
+    @keyframes fadeOut { to { opacity: 0; pointer-events: none; } }
 
-    /* The embed iframe — full screen */
     #player {
-      position: fixed;
-      top: 0; left: 0;
-      width: 100vw;
-      height: 100vh;
-      border: none;
-      display: block;
-      background: #000;
+      position: fixed; top: 0; left: 0;
+      width: 100vw; height: 100vh;
+      border: none; display: block; background: #000;
     }
 
-    /* Loading overlay shown while iframe loads */
     #loader {
-      position: fixed;
-      inset: 0;
-      background: #000;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      gap: 20px;
-      color: #fff;
-      z-index: 5;
-      transition: opacity 0.5s ease;
+      position: fixed; inset: 0; background: #111;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      gap: 20px; color: #fff; z-index: 5;
+      transition: opacity 0.6s ease;
     }
     #loader.hidden { opacity: 0; pointer-events: none; }
-
     #loader .spinner {
       width: 48px; height: 48px;
       border: 4px solid rgba(255,255,255,0.15);
-      border-top-color: #f44;
-      border-radius: 50%;
+      border-top-color: #f44; border-radius: 50%;
       animation: spin 0.8s linear infinite;
     }
     @keyframes spin { to { transform: rotate(360deg); } }
-
-    #loader p { font-size: 15px; opacity: 0.7; }
-    #loader .stream-title { font-size: 18px; font-weight: 600; text-align: center; padding: 0 24px; }
+    #loader .match { font-size: 18px; font-weight: 600; text-align: center; padding: 0 24px; }
+    #loader .hint  { font-size: 13px; opacity: 0.5; }
   </style>
 </head>
 <body>
-
-  <!-- Loading overlay -->
   <div id="loader">
     <div class="spinner"></div>
-    <p class="stream-title">🔴 ${safeTitle}</p>
-    <p>Loading stream…</p>
+    <p class="match">\uD83D\uDD34 ${safeTitle}</p>
+    <p class="hint">Loading stream\u2026</p>
   </div>
 
-  <!-- Top bar with match title -->
   <div id="topbar">
     <span class="dot"></span>
     <span>${safeTitle}</span>
   </div>
 
-  <!-- The actual stream embed -->
   <iframe
     id="player"
     src="${safeUrl}"
@@ -205,42 +151,34 @@ app.get('/watch', (req, res) => {
   ></iframe>
 
   <script>
-    // Hide the loader once the iframe signals it has loaded.
-    // We also auto-hide after 6s as a fallback (iframe load events
-    // may not fire for cross-origin frames).
     const loader = document.getElementById('loader');
-    const player = document.getElementById('player');
-
-    function hideLoader() {
+    document.getElementById('player').addEventListener('load', () => {
       loader.classList.add('hidden');
-    }
-
-    player.addEventListener('load', hideLoader);
-    setTimeout(hideLoader, 6000); // fallback
+    });
+    // Fallback: hide loader after 6s regardless (cross-origin iframes may not fire load)
+    setTimeout(() => loader.classList.add('hidden'), 6000);
   </script>
-
 </body>
 </html>`);
 });
 
-// ─── Start the Server ─────────────────────────────────────────────────────────
+// ─── Health Check ─────────────────────────────────────────────────────────────
+// Render pings this to confirm the service is alive
 
-app.listen(PORT, () => {
+app.get('/health', (_, res) => res.json({ status: 'ok', service: 'nuvio-live-sports' }));
+
+// ─── Start Server ─────────────────────────────────────────────────────────────
+
+app.listen(PORT, '0.0.0.0', () => {
   console.log('');
   console.log('╔══════════════════════════════════════════════════════╗');
   console.log('║          🔴 Nuvio Live Sports Plugin                 ║');
   console.log('╠══════════════════════════════════════════════════════╣');
-  console.log(`║  Listening on port : ${String(PORT).padEnd(31)}║`);
-  console.log(`║  Public base URL   : ${BASE_URL.padEnd(31)}║`);
+  console.log(`║  Port       : ${String(PORT).padEnd(39)}║`);
+  console.log(`║  Public URL : ${BASE_URL.padEnd(39)}║`);
   console.log('║                                                      ║');
-  console.log('║  📋 Manifest URL for Nuvio:                          ║');
+  console.log('║  📋 Paste into Nuvio → Settings → Addons:           ║');
   console.log(`║  ${(BASE_URL + '/manifest.json').padEnd(52)}║`);
-  console.log('║                                                      ║');
-  console.log('║  💡 Nuvio → Settings → Addons → paste URL above     ║');
   console.log('╚══════════════════════════════════════════════════════╝');
-  console.log('');
-  console.log('📡 Data: https://streamed.pk');
-  console.log('🎬 Watch proxy: ' + BASE_URL + '/watch?url=...');
-  console.log('🔄 Cache: live=30s | today=5min | sport=2min');
   console.log('');
 });
