@@ -2,7 +2,9 @@
 
 [![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy)
 
-A **live sports streaming add-on** for [Nuvio](https://nuvio.tv) powered by the [Streamed.pk](https://streamed.pk) public API. Browse and watch live football, basketball, tennis, cricket, and more — directly from inside Nuvio.
+A **live sports streaming add-on** for [Nuvio](https://nuvio.tv) and [Stremio](https://www.stremio.com/). Browse and watch live football, basketball, motorsport, cricket, and more — directly from inside Nuvio.
+
+This plugin acts as a powerful aggregator and resolver, pulling matches from multiple sources and extracting direct, high-quality native HLS streams.
 
 > **For personal / educational use only.**
 
@@ -10,38 +12,28 @@ A **live sports streaming add-on** for [Nuvio](https://nuvio.tv) powered by the 
 
 ## ✨ Features
 
-- 🔴 **Live Now** — matches currently streaming
-- 📅 **Today's Matches** — all matches scheduled for today
-- ⭐ **Popular** — featured / trending matches
-- ⚽ **14 sport categories** — Football, Basketball, Tennis, Cricket, MMA & more
-- 🔵 **HD-first** — HD streams are prioritized over SD
-- 🇬🇧 **English-first** — English streams listed before other languages
-- 🎥 **Dual stream delivery:**
-  - **Native Player** — extracts direct HLS (`.m3u8`) URLs when possible (plays inside Nuvio / VLC)
-  - **Open in Browser** — always available as a fallback (opens the web player in your browser)
-- ⚡ **Smart caching** — live data cached 30s, today's matches 5min — no API hammering
-- 🛡️ **Graceful errors** — retries once on failure, shows friendly messages instead of crashing
+- 🏟️ **Multi-Source Aggregator** — Combines matches and streams from multiple top sources (Streamed.pk, StreamFree, BinTV, TimStreams) into a unified catalog.
+- 🎯 **Smart Deduplication & Sorting** — Intelligently merges duplicate events across sources and sorts the catalog to show **Live** and **Popular** matches first.
+- 🔍 **Deep Search** — Built-in search functionality to find specific matches, teams, or leagues instantly.
+- 🎥 **Dual Stream Delivery:**
+  - **Native HLS Player** — Includes a built-in cryptographic resolver that cracks tokens for sources like Streamed.pk and StreamFree to extract direct `.m3u8` URLs. This allows seamless playback inside Nuvio's native player or VLC.
+  - **Web Player Fallback** — For unsupported third-party embeds, the plugin provides a clean, ad-free full-screen web player wrapper (`/watch` endpoint) that opens directly in your browser.
+- 🚦 **Priority Stream Sorting** — Best streams are always at the top (Streamed.pk > StreamFree > TimStreams > BinTV Direct > BinTV External).
+- ⚡ **High Performance Caching** — In-memory caching (5 mins) prevents API hammering and ensures instant catalog loads.
 
 ---
 
-## 🏟️ Supported Sports
+## 🏟️ Supported Sports Catalogs
 
-| Catalog | Sport |
-|---------|-------|
-| 🔴 Live Now | All sports, currently live |
-| 📅 Today's Matches | All sports, today |
-| ⭐ Popular | Trending / featured matches |
-| ⚽ Football | Soccer / Football |
+| Catalog | Description |
+|---------|-------------|
+| ⚽ Football | Soccer matches from top leagues |
+| 🏏 Cricket | International and domestic cricket |
+| 🏎️ Motorsport | F1, MotoGP, Racing |
 | 🏀 Basketball | NBA, EuroLeague, etc. |
-| 🏈 American Football | NFL, College |
-| ⚾ Baseball | MLB etc. |
-| 🏒 Ice Hockey | NHL etc. |
-| 🎾 Tennis | ATP, WTA, Grand Slams |
-| 🏏 Cricket | IPL, Test, ODI |
-| 🏎️ Motor Sports | F1, MotoGP |
-| 🥊 Fighting / MMA | UFC, Boxing |
-| ⛳ Golf | PGA Tour etc. |
+| 🏈 American Football | NFL, College Football |
 | 🏉 Rugby | Premiership, Super Rugby |
+| 📡 Other Sports | Tennis, Baseball, Hockey, MMA/Boxing, Golf, Darts, etc. |
 
 ---
 
@@ -51,9 +43,8 @@ Deploying to Render gives you a **permanent public URL** like `https://nuvio-liv
 
 ### Step 1 — Push code to GitHub
 
-1. Go to [github.com/new](https://github.com/new) and create a new **public** repository  
-   (e.g. `nuvio-live-sports-plugin`)
-2. Copy the remote URL shown (e.g. `https://github.com/YOUR_USERNAME/nuvio-live-sports-plugin.git`)
+1. Go to [github.com/new](https://github.com/new) and create a new **public** repository (e.g., `nuvio-live-sports-plugin`).
+2. Copy the remote URL shown.
 3. Link your local repo and push:
 
 ```bash
@@ -64,28 +55,23 @@ git push -u origin main
 
 ### Step 2 — Deploy on Render
 
-1. Go to [render.com](https://render.com) → Sign up free (GitHub login works)
-2. Click **"New +"** → **"Web Service"**
-3. Connect your GitHub repo (`nuvio-live-sports-plugin`)
-4. Render detects `render.yaml` automatically — just click **"Deploy"**
-5. Wait ~2 minutes for the first deploy to finish
-6. Your public manifest URL will be:
-   ```
-   https://nuvio-live-sports.onrender.com/manifest.json
-   ```
-   *(the exact subdomain is shown in your Render dashboard)*
+1. Go to [render.com](https://render.com) → Sign up free (GitHub login works).
+2. Click **"New +"** → **"Web Service"**.
+3. Connect your GitHub repo.
+4. Render detects `render.yaml` automatically — just click **"Deploy"**.
+5. Wait ~2 minutes for the first deploy to finish.
 
-### Step 3 — Add to Nuvio
+### Step 3 — Add to Nuvio / Stremio
 
-1. Open **Nuvio** → **Settings → Addons**
+1. Open **Nuvio** → **Settings → Addons**.
 2. Paste your Render manifest URL:
    ```
-   https://nuvio-live-sports.onrender.com/manifest.json
+   https://YOUR-APP-NAME.onrender.com/manifest.json
    ```
 3. Click **Install** — done! 🎉
 
 > [!NOTE]
-> **Free tier cold starts:** Render's free tier spins down after 15 minutes of inactivity. The first request after idle may take ~30 seconds to wake up. After that it's fast.
+> **Free tier cold starts:** Render's free tier spins down after 15 minutes of inactivity. The first request after idle may take ~30 seconds to wake up.
 
 ---
 
@@ -93,28 +79,16 @@ git push -u origin main
 
 ### Prerequisites
 
-- [Node.js](https://nodejs.org/) **v16 or later**
-- [npm](https://www.npmjs.com/) (comes with Node.js)
-- [Nuvio](https://nuvio.tv) installed on your device
+- [Node.js](https://nodejs.org/) **v22 or later**
+- [npm](https://www.npmjs.com/)
+- [Nuvio](https://nuvio.tv) or Stremio installed.
 
-### Step 1 — Clone / Download
+### Setup
 
 ```bash
-git clone https://github.com/your-username/nuvio-live-sports-plugin.git
+git clone https://github.com/YOUR_USERNAME/nuvio-live-sports-plugin.git
 cd nuvio-live-sports-plugin
-```
-
-Or just download and extract the ZIP.
-
-### Step 2 — Install Dependencies
-
-```bash
 npm install
-```
-
-### Step 3 — Start the Server
-
-```bash
 npm start
 ```
 
@@ -124,92 +98,33 @@ You should see:
 ╔══════════════════════════════════════════════════════╗
 ║          🔴 Nuvio Live Sports Plugin                 ║
 ╠══════════════════════════════════════════════════════╣
-║  Server running on port: 7000                        ║
+║  Port       : 7000                                   ║
+║  Public URL : http://localhost:7000                  ║
 ║                                                      ║
-║  📋 Manifest URL (copy this into Nuvio):             ║
+║  📋 Paste into Nuvio → Settings → Addons:           ║
 ║  http://localhost:7000/manifest.json                 ║
-║                                                      ║
-║  💡 Nuvio → Settings → Addons → paste URL above     ║
 ╚══════════════════════════════════════════════════════╝
 ```
 
-The server must stay running for the add-on to work.
-
-### Step 4 — Add to Nuvio
-
-1. Open **Nuvio**
-2. Go to **Settings → Addons** (or **Content & Discovery → Addons**)
-3. Paste the manifest URL:
-   ```
-   http://localhost:7000/manifest.json
-   ```
-4. Click **Install** / **Add**
-5. Browse to the **Discover** tab — you'll see all sport catalogs listed!
+The server must stay running for the add-on to work locally.
 
 ---
 
-## ⚙️ Configuration
+## 📁 Project Architecture
 
-Copy `.env.example` to `.env` and edit if needed:
+The codebase is split into two main components:
 
-```bash
-cp .env.example .env
-```
+1. **Main Plugin Server (`src/`)** — Port `7000`
+   - Express server providing the Stremio Addon SDK manifest (`manifest.js`).
+   - `api.js`: Aggregates all external sources (StreamFree, Streamed.pk, BinTV, TimStreams), standardizes categories, merges duplicate events, and caches results.
+   - `catalog.js`: Handles catalog rendering, smart sorting, and search filtering.
+   - `streams.js`: Maps sources to available streams, applies priority sorting, and directs streams to either the native HLS proxy or the Web Player fallback.
+   - `/watch`: A custom HTML proxy page that safely embeds third-party web players in a clean, ad-free iframe bypassing referer restrictions.
 
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `PORT` | `7000` | Port the addon server listens on |
-
-If you change the port, update your manifest URL in Nuvio accordingly.
-
----
-
-## 🎥 How Streams Work
-
-When you click a match, the plugin returns **two types of stream entries**:
-
-### 1. 🎥 Native Player (HLS)
-- The plugin tries to extract a direct `.m3u8` HLS stream URL from the embed page
-- If successful, this stream plays **inside Nuvio's native player** or any HLS-capable player like **VLC**
-- Labeled: `Alpha · Stream 1` / `🔵 HD · English · Native Player`
-
-### 2. 🌐 Open in Browser
-- Always available as a reliable fallback
-- Opens the stream's embed page in your **system browser** (web player)
-- Labeled: `🌐 Open in Browser` / `🔵 HD · English · Browser Player`
-
-**Stream priority order:** HD English → HD other language → SD English → SD other language
-
-### Playing in VLC
-If a Native Player (HLS) stream appears:
-1. Click it — Nuvio may open VLC automatically if it's set as the default player for `.m3u8` files
-2. Alternatively, right-click the stream in Nuvio → "Open with external player" → VLC
-
----
-
-## 🔧 Development
-
-Run with auto-restart on file changes (Node 18+):
-
-```bash
-npm run dev
-```
-
-### Verify the API endpoints directly
-
-```bash
-# Check the manifest
-curl http://localhost:7000/manifest.json
-
-# Check the live catalog
-curl "http://localhost:7000/catalog/tv/live.json"
-
-# Check a sport catalog
-curl "http://localhost:7000/catalog/tv/football.json"
-
-# Check streams for a specific match (replace MATCH_ID with a real one)
-curl "http://localhost:7000/stream/tv/sports-MATCH_ID.json"
-```
+2. **Internal Resolver (`resolver/src/`)** — Port `3000`
+   - A specialized background service spawned automatically by `index.js`.
+   - Reverse-engineers and cracks the cryptographic tokens used by `embed.st` (Streamed.pk) and handles proxying for `StreamFree`.
+   - Proxies the final `.m3u8` HLS streams back to the main server, allowing native playback without a browser.
 
 ---
 
@@ -217,37 +132,9 @@ curl "http://localhost:7000/stream/tv/sports-MATCH_ID.json"
 
 | Limitation | Details |
 |------------|---------|
-| **HLS extraction is best-effort** | Not all embed pages expose `.m3u8` URLs in their source. When extraction fails, only the "Open in Browser" option appears. |
-| **Browser player may have ads** | The embed pages from Streamed.pk are third-party web players and may contain ads. |
-| **Local server required** | The plugin needs to be running on your machine while you use Nuvio. It's not a hosted service. |
-| **Stream availability** | Streams go live close to match start time. Matches listed as "upcoming" may show no streams yet. |
-| **API rate limits** | Streamed.pk currently has no rate limits, but this may change. The built-in caching minimizes requests. |
-
----
-
-## 📡 Data Source
-
-All sports data is provided by **[Streamed.pk](https://streamed.pk)** — a free, public REST API with no authentication required.
-
-- API Base URL: `https://streamed.pk/api`
-- Documentation: `https://streamed.pk/docs`
-
----
-
-## 📁 Project Structure
-
-```
-nuvio-live-sports-plugin/
-├── package.json          # Dependencies & npm scripts
-├── .env.example          # Environment variable template
-├── README.md             # This file
-└── src/
-    ├── index.js          # Entry point — starts the addon server
-    ├── manifest.js       # Stremio/Nuvio addon manifest & catalog definitions
-    ├── catalog.js        # Catalog & meta handlers (match lists & details)
-    ├── streams.js        # Stream handler (HLS extraction + browser fallback)
-    └── api.js            # Streamed.pk API client with caching & retry
-```
+| **Native HLS availability** | Supported for Streamed.pk, StreamFree, and direct BinTV links. Some sources (TimStreams, BinTV embeds) use proprietary DRM/encryption and will fallback to the Web Player. |
+| **Stream availability** | Streams usually go live 10-15 minutes before the match start time. |
+| **Render Sleep** | Free Render instances sleep when inactive. We recommend using a service like UptimeRobot if you want it awake 24/7. |
 
 ---
 
