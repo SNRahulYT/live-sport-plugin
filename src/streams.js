@@ -1,76 +1,5 @@
-const axios = require('axios');
-const { getAllMatches } = require('./api');
+const container = require('./container');
 const { BASE_URL } = require('./config');
-
-async function resolveStreamFree(category, streamKey) {
-  try {
-    const embedUrl = `https://streamfree.top/embed/${category}/${streamKey}`;
-    const res = await axios.get(embedUrl, { timeout: 10000 });
-    const html = res.data;
-
-    // Extract the _0x token object from the HTML
-    const match = html.match(/const\s+_0x\s*=\s*(\{.*?\});/);
-    if (!match) {
-      throw new Error("Could not find _0x tokens in StreamFree HTML");
-    }
-
-    const tokens = JSON.parse(match[1]);
-    
-    // Check available qualities in order of preference
-    const prefs = ['1080p', '720p', '540p'];
-    let bestQuality = null;
-    let t = null;
-
-    for (const q of prefs) {
-      if (tokens[q]) {
-        bestQuality = q;
-        t = tokens[q];
-        break;
-      }
-    }
-
-    if (!bestQuality || !t) {
-      throw new Error("No suitable stream qualities found in StreamFree tokens");
-    }
-
-    // Determine the server endpoint (default to origin)
-    // We could call /get-stream-key to check if it's on a CDN, but it defaults to origin
-    let serverRes;
-    try {
-      serverRes = await axios.get(`https://streamfree.top/get-stream-key/${streamKey}`, { timeout: 5000 });
-    } catch (e) {
-      serverRes = { data: { server_name: 'origin' } };
-    }
-
-    const serverName = serverRes.data && serverRes.data.server_name ? serverRes.data.server_name : 'origin';
-    const baseUrl = serverName !== 'origin' 
-      ? `https://streamfree.top/live-cdn/${streamKey}${bestQuality}/index.m3u8`
-      : `https://streamfree.top/live/${streamKey}${bestQuality}/index.m3u8`;
-
-    // Construct the authenticated m3u8 URL
-    const targetUrl = `${baseUrl}?_t=${t._t}&_e=${t._e}&_n=${t._n}`;
-
-    // Pass the streamfree target URL to our internal HLS proxy so it attaches the Referer header correctly
-    // We use a dummy embed path `echo/streamfree/1` for the proxy to parse successfully
-    const proxyUrlObj = new URL('http://localhost:3000/api/hls');
-    proxyUrlObj.searchParams.set('url', targetUrl);
-    proxyUrlObj.searchParams.set('embed', 'echo/streamfree/1');
-    proxyUrlObj.searchParams.set('embedOrigin', 'https://streamfree.top');
-    proxyUrlObj.searchParams.set('referer', 'https://streamfree.top/');
-
-    const finalUrl = `${BASE_URL}${proxyUrlObj.pathname}${proxyUrlObj.search}`;
-
-    return {
-      name: `Nuvio HLS Proxy`,
-      title: `StreamFree (${bestQuality})`,
-      url: finalUrl
-    };
-
-  } catch (error) {
-    console.error(`[Streams] StreamFree decryptor failed for ${streamKey}:`, error.message);
-    return null;
-  }
-}
 
 async function handleStream(type, id) {
   if (type !== 'tv' || !id.startsWith('nuvio_sport_')) {
@@ -79,8 +8,8 @@ async function handleStream(type, id) {
 
   const matchId = id.replace('nuvio_sport_', '');
   
-  // First, get the match details to find its sources
-  const matches = await getAllMatches();
+  const cacheService = container.resolve('cacheService');
+  const matches = cacheService.getMatches();
   const match = matches.find(m => m.id === matchId);
 
   if (!match || !match.sources || match.sources.length === 0) {
@@ -89,13 +18,11 @@ async function handleStream(type, id) {
 
   const streams = [];
 
-  // Priority order: Streamed.pk > StreamFree > TimStreams > BinTV Direct > BinTV External
   const SOURCE_PRIORITY = { admin: 1, echo: 1, golf: 1, delta: 1, 'streamfree': 2, 'timstreams': 3, 'bintv': 4 };
   const sortedSources = [...match.sources].sort((a, b) => {
     const pa = SOURCE_PRIORITY[a.source] ?? 99;
     const pb = SOURCE_PRIORITY[b.source] ?? 99;
     if (pa !== pb) return pa - pb;
-    // Within bintv, direct m3u8 links beat web players (checked by url content)
     if (a.source === 'bintv' && b.source === 'bintv') {
       const aIsDirect = a.url && (a.url.includes('.m3u8') || (a.url.includes('noooooads/?src=') && a.url.includes('.m3u8')));
       const bIsDirect = b.url && (b.url.includes('.m3u8') || (b.url.includes('noooooads/?src=') && b.url.includes('.m3u8')));
@@ -105,119 +32,146 @@ async function handleStream(type, id) {
     return 0;
   });
 
+  const m3u8Parser = container.resolve('m3u8Parser');
+  const streamScorer = container.resolve('streamScorer');
+
   for (const src of sortedSources) {
-    const sourceName = src.source; // e.g. "admin" or "echo" or "streamfree"
-    const streamNo = '1'; // Assume stream 1 for now
+    const sourceName = src.source; 
 
     if (sourceName === 'streamfree') {
+      const provider = container.resolve('streamFreeProvider');
       const sfCategory = src.original_category || match.category;
-      const sfStream = await resolveStreamFree(sfCategory, src.id);
-      if (sfStream) {
-        streams.push(sfStream);
+      const resStreams = await provider.resolveStream(src.id, sfCategory, match.title);
+      
+      for (const s of resStreams) {
+        if (s.url && s.url.startsWith('/api/hls')) {
+          s.url = `${BASE_URL}${s.url}`;
+        }
+        s.score = streamScorer.calculateScore(s, sourceName);
+        streams.push(s);
       }
       continue;
     }
 
     if (sourceName === 'timstreams') {
       let url = src.url;
-      
-      // 1. Direct M3U8 Links
       if (url && url.includes('.m3u8')) {
-        streams.push({
+        const qualityInfo = await m3u8Parser.getHighestQuality(url);
+        const titleSuffix = qualityInfo ? ` (${qualityInfo.label})` : ` (${src.id})`;
+        const s = {
           name: 'Nuvio Direct',
-          title: `TimStreams (${src.id})`,
-          url: url
-        });
+          title: `TimStreams${titleSuffix}`,
+          url: url,
+          resolution: qualityInfo ? qualityInfo.resolution : null
+        };
+        s.score = streamScorer.calculateScore(s, sourceName);
+        streams.push(s);
         continue;
       }
-      
-      // 2. ritzembeds or other embed pages → serve via Web Player
       const externalUrl = `${BASE_URL}/watch?url=${encodeURIComponent(url)}&title=${encodeURIComponent(match.title)}`;
-      streams.push({
+      const s = {
         name: 'Nuvio Web Player',
         title: `TimStreams (${src.id})`,
         externalUrl: externalUrl
-      });
+      };
+      s.score = streamScorer.calculateScore(s, sourceName);
+      streams.push(s);
       continue;
     }
 
     if (sourceName === 'bintv') {
       let url = src.url;
-      
-      // Clean up noooooads wrappers if they contain a direct m3u8 payload
       if (url && url.includes('noooooads/?src=') && url.includes('.m3u8')) {
         url = decodeURIComponent(url.split('?src=')[1]);
       }
-
-      // 1. Direct M3U8 Links (e.g. Rumble CDN)
       if (url && url.includes('.m3u8')) {
-        // Just return it natively!
-        streams.push({
+        const qualityInfo = await m3u8Parser.getHighestQuality(url);
+        const titleSuffix = qualityInfo ? ` (${qualityInfo.label})` : ` (${src.id})`;
+        const s = {
           name: 'Nuvio Direct',
-          title: `BinTV (${src.id})`,
-          url: url
-        });
+          title: `BinTV${titleSuffix}`,
+          url: url,
+          resolution: qualityInfo ? qualityInfo.resolution : null
+        };
+        s.score = streamScorer.calculateScore(s, sourceName);
+        streams.push(s);
         continue;
       }
-      
-      // 2. StreamFree Links inside BinTV
       if (url && url.includes('streamfree.top/embed')) {
         try {
           const urlObj = new URL(url);
           const parts = urlObj.pathname.split('/').filter(Boolean);
-          // e.g. /embed/cricket/skycricket -> parts = ['embed', 'cricket', 'skycricket']
           if (parts.length >= 3) {
-            const cat = parts[1];
-            const streamKey = parts[2];
-            const sfStream = await resolveStreamFree(cat, streamKey);
-            if (sfStream) {
-              sfStream.title = `BinTV StreamFree (${src.id})`;
-              streams.push(sfStream);
+            const provider = container.resolve('streamFreeProvider');
+            const resStreams = await provider.resolveStream(parts[2], parts[1], match.title);
+            for (const s of resStreams) {
+              if (s.url && s.url.startsWith('/api/hls')) {
+                s.url = `${BASE_URL}${s.url}`;
+              }
+              s.title = `BinTV StreamFree (${s.resolution || 'Auto'})`;
+              s.score = streamScorer.calculateScore(s, sourceName);
+              streams.push(s);
             }
           }
-        } catch (e) {
-          console.error('[Streams] Failed to parse BinTV StreamFree URL', url);
-        }
+        } catch (e) {}
         continue;
       }
 
-      // 3. Unrecognized Embeds (e.g. dlhd.st, ritzembeds)
-      // Use Stremio's externalUrl property alongside our /watch proxy
       const externalUrl = `${BASE_URL}/watch?url=${encodeURIComponent(url)}&title=${encodeURIComponent(match.title)}`;
-      streams.push({
+      const s = {
         name: 'Nuvio Web Player',
         title: `BinTV External (${src.id})`,
         externalUrl: externalUrl
-      });
+      };
+      s.score = streamScorer.calculateScore(s, sourceName);
+      streams.push(s);
       continue;
     }
 
-    // By passing the embed.st URL directly, we completely bypass the streamed.pk watch page
-    // which doesn't exist for streamfree matches. The resolver will happily crack the lock!
-    const watchUrl = `https://embed.st/embed/${sourceName}/${src.id}/${streamNo}`;
-    
-    try {
-      // Call our internal stream resolver running on port 3000
-      const resolveRes = await axios.post('http://localhost:3000/api/stream', { url: watchUrl }, { timeout: 15000 });
-      
-      if (resolveRes.data && resolveRes.data.relay) {
-        // The resolver gives a relay URL like http://localhost:3000/api/hls?...
-        // We must replace localhost:3000 with our BASE_URL since Nuvio needs the public URL.
-        const relayUrl = resolveRes.data.relay;
-        
-        const proxyUrlObj = new URL(relayUrl);
-        const finalUrl = `${BASE_URL}${proxyUrlObj.pathname}${proxyUrlObj.search}`;
-        
-        streams.push({
-          name: `Nuvio HLS Proxy`,
-          title: `Streamed.pk (${sourceName})`,
-          url: finalUrl
-        });
+    if (sourceName === 'ntv') {
+      const provider = container.resolve('ntvProvider');
+      const resStreams = await provider.resolveStream(src.id, match.category, match.title);
+      for (const s of resStreams) {
+        s.score = streamScorer.calculateScore(s, sourceName);
+        streams.push(s);
       }
-    } catch (err) {
-      console.error(`[Streams] Resolver failed for ${watchUrl}:`, err.message);
+      continue;
+    }
+
+    if (sourceName === 'sportyhunter') {
+      const provider = container.resolve('sportyHunterProvider');
+      const resStreams = await provider.resolveStream(src.id, match.category, match.title);
+      for (const s of resStreams) {
+        s.score = streamScorer.calculateScore(s, sourceName);
+        streams.push(s);
+      }
+      continue;
+    }
+
+    if (sourceName === 'streamsports') {
+      const provider = container.resolve('streamSportsProvider');
+      const resStreams = await provider.resolveStream(src.id, match.category, match.title);
+      for (const s of resStreams) {
+        s.score = streamScorer.calculateScore(s, sourceName);
+        streams.push(s);
+      }
+      continue;
+    }
+
+    // Streamed.pk
+    const provider = container.resolve('streamedPkProvider');
+    const resStreams = await provider.resolveStream(src.id, match.category, match.title, '1', sourceName);
+    for (const s of resStreams) {
+      if (s.url && s.url.startsWith('/api/hls')) {
+        s.url = `${BASE_URL}${s.url}`;
+      }
+      s.score = streamScorer.calculateScore(s, sourceName);
+      streams.push(s);
     }
   }
+
+  // Sort streams by score descending
+  streams.sort((a, b) => b.score - a.score);
 
   return { streams };
 }

@@ -23,6 +23,7 @@ const { builder } = require('./manifest');
 const { handleCatalog, handleMeta } = require('./catalog');
 const { handleStream } = require('./streams');
 const { PORT, BASE_URL } = require('./config');
+const container = require('./container');
 
 // ─── Spawn the Streamed.pk Resolver ───────────────────────────────────────────
 
@@ -47,8 +48,12 @@ const app = express();
 
 app.use(cors());
 
-// Serve the web debugger UI
+// Serve the web debugger UI and Configuration Page
 app.use(express.static(path.join(__dirname, '..', 'public')));
+
+app.get('/', (req, res) => {
+  res.sendFile(path.join(__dirname, '..', 'public', 'configure.html'));
+});
 
 // Mount the HLS Video Proxy (routes to the internal resolver on port 3000)
 app.use('/api', createProxyMiddleware({
@@ -139,6 +144,11 @@ app.get('/watch', (req, res) => {
       border: none; display: block; background: #000;
     }
 
+    #video-player {
+      position: fixed; top: 0; left: 0;
+      width: 100vw; height: 100vh;
+      border: none; display: none; background: #000;
+    }
     #loader {
       position: fixed; inset: 0; background: #111;
       display: flex; flex-direction: column;
@@ -156,7 +166,16 @@ app.get('/watch', (req, res) => {
     @keyframes spin { to { transform: rotate(360deg); } }
     #loader .match { font-size: 18px; font-weight: 600; text-align: center; padding: 0 24px; }
     #loader .hint  { font-size: 13px; opacity: 0.5; }
+    
+    #p2p-status {
+      position: fixed; bottom: 20px; right: 20px; background: rgba(0,0,0,0.7); color: #0f0;
+      padding: 5px 10px; border-radius: 4px; font-size: 12px; font-family: monospace; z-index: 20;
+      display: none;
+    }
   </style>
+  <script src="https://cdn.jsdelivr.net/npm/p2p-media-loader-core@latest/build/p2p-media-loader-core.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/p2p-media-loader-hlsjs@latest/build/p2p-media-loader-hlsjs.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
 </head>
 <body>
   <div id="loader">
@@ -170,22 +189,71 @@ app.get('/watch', (req, res) => {
     <span>${safeTitle}</span>
   </div>
 
+  <div id="p2p-status">P2P Active: 0 Peers</div>
+
   <iframe
     id="player"
-    src="${safeUrl}"
     allowfullscreen
     allow="autoplay; encrypted-media; fullscreen; picture-in-picture; accelerometer; gyroscope"
     scrolling="no"
     loading="eager"
   ></iframe>
 
+  <video id="video-player" controls autoplay playsinline></video>
+
   <script>
     const loader = document.getElementById('loader');
-    document.getElementById('player').addEventListener('load', () => {
-      loader.classList.add('hidden');
-    });
-    // Fallback: hide loader after 6s regardless (cross-origin iframes may not fire load)
-    setTimeout(() => loader.classList.add('hidden'), 6000);
+    const iframe = document.getElementById('player');
+    const video = document.getElementById('video-player');
+    const p2pStatus = document.getElementById('p2p-status');
+    const targetUrl = "${safeUrl}";
+    const isM3u8 = targetUrl.includes('.m3u8');
+
+    if (isM3u8) {
+      iframe.style.display = 'none';
+      video.style.display = 'block';
+      p2pStatus.style.display = 'block';
+
+      if (p2pml.hlsjs.Engine.isSupported()) {
+        const engine = new p2pml.hlsjs.Engine();
+        
+        engine.on('peer_connect', () => {
+           p2pStatus.innerText = 'P2P Active: ' + engine.getSettings().swarmId + ' peers connected';
+        });
+
+        const hls = new Hls({
+          liveSyncDurationCount: 7,
+          loader: engine.createLoaderClass()
+        });
+
+        p2pml.hlsjs.initHlsJsPlayer(hls);
+        hls.loadSource(targetUrl);
+        hls.attachMedia(video);
+        hls.on(Hls.Events.MANIFEST_PARSED, () => {
+          video.play().catch(e => console.log('Autoplay blocked'));
+          loader.classList.add('hidden');
+        });
+      } else if (Hls.isSupported()) {
+        const hls = new Hls();
+        hls.loadSource(targetUrl);
+        hls.attachMedia(video);
+        hls.on(Hls.Events.MANIFEST_PARSED, () => {
+          video.play();
+          loader.classList.add('hidden');
+        });
+      } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
+        video.src = targetUrl;
+        video.addEventListener('loadedmetadata', () => {
+          video.play();
+          loader.classList.add('hidden');
+        });
+      }
+    } else {
+      video.style.display = 'none';
+      iframe.src = targetUrl;
+      iframe.addEventListener('load', () => loader.classList.add('hidden'));
+      setTimeout(() => loader.classList.add('hidden'), 6000);
+    }
   </script>
 </body>
 </html>`);
@@ -197,6 +265,8 @@ app.get('/watch', (req, res) => {
 app.get('/health', (_, res) => res.json({ status: 'ok', service: 'nuvio-live-sports' }));
 
 // ─── Start Server ─────────────────────────────────────────────────────────────
+
+container.resolve('cronService').start();
 
 app.listen(PORT, '0.0.0.0', () => {
   console.log('');

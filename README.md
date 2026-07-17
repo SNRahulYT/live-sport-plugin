@@ -2,76 +2,35 @@
 
 [![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy)
 
-A **live sports streaming add-on** for [Nuvio](https://nuvio.tv) and [Stremio](https://www.stremio.com/). Browse and watch live football, basketball, motorsport, cricket, and more — directly from inside Nuvio.
+A **production-grade live sports streaming add-on** for [Nuvio](https://nuvio.tv) and [Stremio](https://www.stremio.com/). Browse and watch live football, basketball, motorsport, cricket, and more — directly from inside Nuvio.
 
-This plugin acts as a powerful aggregator and resolver, pulling matches from multiple sources and extracting direct, high-quality native HLS streams.
+This plugin is designed with enterprise-scale architecture. It acts as a powerful aggregator and resolver, utilizing Dependency Injection, Circuit Breakers, Smart Caching, and WebRTC P2P meshing to deliver a bulletproof streaming experience.
 
 > **For personal / educational use only.**
 
 ---
 
-## ✨ Features
+## ✨ Enterprise Features (Phase 1, 2 & 3)
 
 - 🏟️ **Multi-Source Aggregator** — Combines matches and streams from multiple top sources (Streamed.pk, StreamFree, BinTV, TimStreams) into a unified catalog.
-- 🎯 **Smart Deduplication & Sorting** — Intelligently merges duplicate events across sources and sorts the catalog to show **Live** and **Popular** matches first.
-- 🔍 **Deep Search** — Built-in search functionality to find specific matches, teams, or leagues instantly.
-- 🎥 **Dual Stream Delivery:**
-  - **Native HLS Player** — Includes a built-in cryptographic resolver that cracks tokens for sources like Streamed.pk and StreamFree to extract direct `.m3u8` URLs. This allows seamless playback inside Nuvio's native player or VLC.
-  - **Web Player Fallback** — For unsupported third-party embeds, the plugin provides a clean, ad-free full-screen web player wrapper (`/watch` endpoint) that opens directly in your browser.
-- 🚦 **Priority Stream Sorting** — Best streams are always at the top (Streamed.pk > StreamFree > TimStreams > BinTV Direct > BinTV External).
-- ⚡ **High Performance Caching** — In-memory caching (5 mins) prevents API hammering and ensures instant catalog loads.
+- ⚡ **Background Cron Caching (Zero Latency)** — Uses SWR (Stale-While-Revalidate) caching with an internal background Cron Service. Catalogs load instantly without hammering provider APIs.
+- 🛡️ **Opossum Circuit Breakers** — Every provider is isolated via Circuit Breakers. If a streaming site goes down, the addon instantly fails-over gracefully without hanging your Stremio client.
+- 🧠 **Algorithmic Stream Scoring** — Streams aren't just listed; they are scored algorithmically. High-resolution direct `.m3u8` links are pushed to the top, while external web players are penalized. You always get the best stream first.
+- 🌐 **WebRTC P2P Mesh Network** — Built into the Nuvio Web Player. When thousands of users watch the same match, their browsers connect via WebRTC to share video chunks. This prevents the provider's CDN from crashing and eliminates buffering.
+- 🗣️ **Deep Language Parsing** — Natively extracts audio tracks from the M3U8 manifest (e.g. `[EN]`, `[ES]`) and displays the language tag directly in Stremio.
+- 🔥 **Smart Trending Engine** — Automatically detects massive global events (e.g., Champions League, Super Bowl) via keyword analysis and forces them to the top of your `🔴 Live Now` catalog.
+- ⚙️ **Custom User Personalization** — Features a beautiful local UI (`http://localhost:8080/configure`). Type in your favorite teams (e.g. "Arsenal", "Lakers") to generate a custom Stremio URL. Your teams will automatically populate the `⭐ Your Teams` row at the very top of your board.
+- 🏗️ **Zero-Code YAML Scrapers** — Add new streaming sites in 5 minutes without writing JavaScript. Just create a `.yml` file in `src/providers/yaml/` using CSS selectors. Included is a CLI tool (`npm run generate:provider`) for instant scaffolding!
 
 ---
 
-## 🏟️ Supported Sports Catalogs
+## 🏟️ Chronological Catalogs
 
-| Catalog | Description |
-|---------|-------------|
-| ⚽ Football | Soccer matches from top leagues |
-| 🏏 Cricket | International and domestic cricket |
-| 🏎️ Motorsport | F1, MotoGP, Racing |
-| 🏀 Basketball | NBA, EuroLeague, etc. |
-| 🏈 American Football | NFL, College Football |
-| 🏉 Rugby | Premiership, Super Rugby |
-| 📡 Other Sports | Tennis, Baseball, Hockey, MMA/Boxing, Golf, Darts, etc. |
-
----
-
-## ☁️ Deploy to Render (Recommended — Public URL)
-
-Deploying to Render gives you a **permanent public URL** like `https://nuvio-live-sports.onrender.com/manifest.json` that works on any device without running anything locally.
-
-### Step 1 — Push code to GitHub
-
-1. Go to [github.com/new](https://github.com/new) and create a new **public** repository (e.g., `nuvio-live-sports-plugin`).
-2. Copy the remote URL shown.
-3. Link your local repo and push:
-
-```bash
-git remote add origin https://github.com/YOUR_USERNAME/nuvio-live-sports-plugin.git
-git branch -M main
-git push -u origin main
-```
-
-### Step 2 — Deploy on Render
-
-1. Go to [render.com](https://render.com) → Sign up free (GitHub login works).
-2. Click **"New +"** → **"Web Service"**.
-3. Connect your GitHub repo.
-4. Render detects `render.yaml` automatically — just click **"Deploy"**.
-5. Wait ~2 minutes for the first deploy to finish.
-
-### Step 3 — Add to Nuvio / Stremio
-
-1. Open **Nuvio** → **Settings → Addons**.
-2. Paste your Render manifest URL:
-   ```
-   https://YOUR-APP-NAME.onrender.com/manifest.json
-   ```
-3. Click **Install** — done! 🎉
-
-> [!NOTE]
-> **Free tier cold starts:** Render's free tier spins down after 15 minutes of inactivity. The first request after idle may take ~30 seconds to wake up.
+Instead of scrolling endlessly, your Stremio Board is dynamically segmented:
+- **⭐ Your Teams:** Matches featuring the teams you configured.
+- **🔴 Live Now:** Events happening right now across the globe.
+- **⏱️ Upcoming:** Scheduled events sorted by kickoff time.
+- **⚽ By Sport:** Football, Cricket, Motorsport, Basketball, and more.
 
 ---
 
@@ -89,52 +48,52 @@ git push -u origin main
 git clone https://github.com/YOUR_USERNAME/nuvio-live-sports-plugin.git
 cd nuvio-live-sports-plugin
 npm install
-npm start
+npm run dev
 ```
 
-You should see:
-
-```
-╔══════════════════════════════════════════════════════╗
-║          🔴 Nuvio Live Sports Plugin                 ║
-╠══════════════════════════════════════════════════════╣
-║  Port       : 7000                                   ║
-║  Public URL : http://localhost:7000                  ║
-║                                                      ║
-║  📋 Paste into Nuvio → Settings → Addons:           ║
-║  http://localhost:7000/manifest.json                 ║
-╚══════════════════════════════════════════════════════╝
-```
-
-The server must stay running for the add-on to work locally.
+### Personalize & Install
+1. Open your browser and go to **http://localhost:8080**
+2. Type in your favorite teams (optional).
+3. Click **Install Addon** to automatically inject your custom settings into Stremio.
 
 ---
 
-## 📁 Project Architecture
+## ☁️ Deploy to Render (Recommended — Public URL)
 
-The codebase is split into two main components:
+Deploying to Render gives you a **permanent public URL** like `https://nuvio-live-sports.onrender.com/manifest.json` that works on any device without running anything locally.
 
-1. **Main Plugin Server (`src/`)** — Port `7000`
-   - Express server providing the Stremio Addon SDK manifest (`manifest.js`).
-   - `api.js`: Aggregates all external sources (StreamFree, Streamed.pk, BinTV, TimStreams), standardizes categories, merges duplicate events, and caches results.
-   - `catalog.js`: Handles catalog rendering, smart sorting, and search filtering.
-   - `streams.js`: Maps sources to available streams, applies priority sorting, and directs streams to either the native HLS proxy or the Web Player fallback.
-   - `/watch`: A custom HTML proxy page that safely embeds third-party web players in a clean, ad-free iframe bypassing referer restrictions.
+### Step 1 — Push code to GitHub
+1. Create a **public** repository.
+2. Link your local repo and push:
+```bash
+git remote add origin https://github.com/YOUR_USERNAME/nuvio-live-sports-plugin.git
+git branch -M main
+git push -u origin main
+```
 
-2. **Internal Resolver (`resolver/src/`)** — Port `3000`
-   - A specialized background service spawned automatically by `index.js`.
-   - Reverse-engineers and cracks the cryptographic tokens used by `embed.st` (Streamed.pk) and handles proxying for `StreamFree`.
-   - Proxies the final `.m3u8` HLS streams back to the main server, allowing native playback without a browser.
+### Step 2 — Deploy on Render
+1. Go to [render.com](https://render.com).
+2. Click **"New +"** → **"Web Service"**.
+3. Connect your GitHub repo.
+4. Render detects `render.yaml` automatically — click **"Deploy"**.
+
+### Step 3 — Install
+1. Open Nuvio/Stremio → Settings → Addons.
+2. Paste your Render manifest URL: `https://YOUR-APP-NAME.onrender.com/manifest.json`.
 
 ---
 
-## ⚠️ Known Limitations
+## 👨‍💻 Developer Guide: Adding a New Provider (No-Code)
 
-| Limitation | Details |
-|------------|---------|
-| **Native HLS availability** | Supported for Streamed.pk, StreamFree, and direct BinTV links. Some sources (TimStreams, BinTV embeds) use proprietary DRM/encryption and will fallback to the Web Player. |
-| **Stream availability** | Streams usually go live 10-15 minutes before the match start time. |
-| **Render Sleep** | Free Render instances sleep when inactive. We recommend using a service like UptimeRobot if you want it awake 24/7. |
+You can add new streaming sites without writing any code by using our YAML engine.
+
+1. Open your terminal in the project directory.
+2. Run the scaffolding tool:
+   ```bash
+   npm run generate:provider KickoffStreams
+   ```
+3. Open the newly created `src/providers/yaml/kickoffstreams.yml` file.
+4. Update the CSS selectors to match the target website. The engine handles all circuit breaking, caching, and streaming logic automatically!
 
 ---
 

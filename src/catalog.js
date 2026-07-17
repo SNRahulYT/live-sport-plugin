@@ -1,9 +1,8 @@
-const { getAllMatches } = require('./api');
+const container = require('./container');
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function mapMatchToMetaPreview(match) {
-  // Generate a premium fallback image with placehold.co
   const safeTitle = encodeURIComponent((match.title || 'Live Match').substring(0, 30));
   const fallbackPoster = `https://placehold.co/800x450/111111/ef4444.png?text=${safeTitle}&font=Montserrat`;
   
@@ -16,8 +15,6 @@ function mapMatchToMetaPreview(match) {
   let dateObj = new Date();
   if (match.date && !isNaN(parseInt(match.date))) {
      dateObj = new Date(parseInt(match.date));
-  } else if (match.date) {
-     dateObj = new Date(match.date);
   }
   const timeString = dateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
@@ -49,35 +46,53 @@ async function handleCatalog(type, id, extra) {
   }
 
   const categoryMatch = id.replace('nuvio_sports_', '');
-  const matches = await getAllMatches();
+  
+  // Use CacheService instead of hitting APIs on demand
+  const cacheService = container.resolve('cacheService');
+  const matches = cacheService.getMatches();
   
   let filteredMatches = matches;
-  if (categoryMatch === 'other') {
-    // 'other' shows everything that doesn't have a dedicated tab
+  
+  if (categoryMatch === 'live') {
+    filteredMatches = matches.filter(m => m.popular === '1');
+  } else if (categoryMatch === 'upcoming') {
+    const now = Date.now();
+    filteredMatches = matches.filter(m => {
+      const kickoff = parseInt(m.date) || 0;
+      return m.popular === '0' && kickoff > now;
+    });
+  } else if (categoryMatch === 'teams') {
+    if (extra && extra.config && extra.config.teams) {
+      const favoriteTeams = extra.config.teams.toLowerCase().split(',').map(t => t.trim()).filter(Boolean);
+      filteredMatches = matches.filter(m => {
+        const titleWords = m.title.toLowerCase();
+        return favoriteTeams.some(team => titleWords.includes(team));
+      });
+    } else {
+      filteredMatches = []; // If no config, return empty
+    }
+  } else if (categoryMatch === 'other') {
     const knownCats = ['football', 'cricket', 'motorsport', 'basketball', 'american_football', 'rugby', 'baseball', 'tennis', 'hockey', 'darts', 'golf'];
     filteredMatches = matches.filter(m => !knownCats.includes(m.category));
   } else if (categoryMatch !== 'catalog') {
     filteredMatches = matches.filter(m => m.category === categoryMatch);
   }
 
-  // Smart Sorting — sort a copy to avoid mutating the shared cached array
   filteredMatches = [...filteredMatches].sort((a, b) => {
     const aIsLive = a.popular === '1' ? 1 : 0;
     const bIsLive = b.popular === '1' ? 1 : 0;
-    
-    // 1. Live events first
     if (aIsLive !== bIsLive) return bIsLive - aIsLive;
     
-    // 2. Upcoming matches chronologically (closest first)
     const dateA = a.date ? parseInt(a.date) : 0;
     const dateB = b.date ? parseInt(b.date) : 0;
     
-    return dateA - dateB;
+    // Sort upcoming by closest first
+    if (dateA > 0 && dateB > 0) return dateA - dateB;
+    return 0;
   });
 
   let metas = filteredMatches.map(mapMatchToMetaPreview);
 
-  // Deep Search
   if (extra && extra.search) {
     const q = extra.search.toLowerCase();
     metas = metas.filter(m => 
@@ -96,15 +111,15 @@ async function handleMeta(type, id) {
   }
 
   const matchId = id.replace('nuvio_sport_', '');
-  const matches = await getAllMatches();
+  const cacheService = container.resolve('cacheService');
+  const matches = cacheService.getMatches();
   const match = matches.find(m => m.id === matchId);
 
   if (!match) {
     return { meta: null };
   }
 
-  const metaPreview = mapMatchToMetaPreview(match);
-  return { meta: metaPreview };
+  return { meta: mapMatchToMetaPreview(match) };
 }
 
 module.exports = {

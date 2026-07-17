@@ -1,0 +1,50 @@
+const { createContainer, asClass, asValue, InjectionMode } = require('awilix');
+
+const CacheService = require('./services/CacheService');
+const CircuitBreakerService = require('./services/CircuitBreakerService');
+const CronService = require('./services/CronService');
+const M3U8ParserService = require('./services/M3U8ParserService');
+const MatchAggregator = require('./services/MatchAggregator');
+const StreamScoringService = require('./services/StreamScoringService');
+
+const StreamFreeProvider = require('./providers/StreamFreeProvider');
+const StreamedPkProvider = require('./providers/StreamedPkProvider');
+const TimStreamsProvider = require('./providers/TimStreamsProvider');
+const BinTvProvider = require('./providers/BinTvProvider');
+const NtvProvider = require('./providers/NtvProvider');
+const SportyHunterProvider = require('./providers/SportyHunterProvider');
+const StreamSportsProvider = require('./providers/StreamSportsProvider');
+
+const YamlProviderBuilder = require('./services/YamlProviderBuilder');
+
+const container = createContainer({
+  injectionMode: InjectionMode.PROXY
+});
+
+// Register Core Services
+container.register({
+  cacheService: asClass(CacheService).singleton(),
+  circuitBreaker: asClass(CircuitBreakerService).singleton(),
+  m3u8Parser: asClass(M3U8ParserService).singleton(),
+  cronService: asClass(CronService).singleton(),
+  matchAggregator: asClass(MatchAggregator).singleton(),
+  streamScorer: asClass(StreamScoringService).singleton()
+});
+
+// Build dynamic YAML Providers
+const yamlBuilder = new YamlProviderBuilder();
+const yamlProviders = yamlBuilder.buildProviders(container, container.resolve('circuitBreaker'));
+
+// Register Providers
+container.register({
+  streamFreeProvider: asClass(StreamFreeProvider).singleton(),
+  streamedPkProvider: asClass(StreamedPkProvider).singleton(),
+  timStreamsProvider: asClass(TimStreamsProvider).singleton(),
+  binTvProvider: asClass(BinTvProvider).singleton(),
+  ntvProvider: asClass(NtvProvider).singleton(),
+  sportyHunterProvider: asClass(SportyHunterProvider).singleton(),
+  streamSportsProvider: asClass(StreamSportsProvider).singleton(),
+  yamlProviders: asValue(yamlProviders)
+});
+
+module.exports = container;
