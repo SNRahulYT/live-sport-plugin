@@ -55,6 +55,10 @@ app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, '..', 'public', 'configure.html'));
 });
 
+app.get('/configure', (req, res) => {
+  res.sendFile(path.join(__dirname, '..', 'public', 'configure.html'));
+});
+
 // Mount the HLS Video Proxy (routes to the internal resolver on port 3000)
 app.use('/api', createProxyMiddleware({
   target: 'http://localhost:3000/api',

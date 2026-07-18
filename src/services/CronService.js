@@ -1,8 +1,8 @@
 const cron = require('node-cron');
 
 class CronService {
-  constructor(container) {
-    this.container = container;
+  constructor({ matchAggregator }) {
+    this.matchAggregator = matchAggregator;
   }
 
   start() {
@@ -12,8 +12,7 @@ class CronService {
     cron.schedule('*/5 * * * *', async () => {
       console.log('[CronService] Running match sync job...');
       try {
-        const aggregator = this.container.resolve('matchAggregator');
-        await aggregator.syncMatches();
+        await this.matchAggregator.syncMatches();
       } catch (err) {
         console.error('[CronService] Match sync failed:', err.message);
       }
@@ -23,9 +22,10 @@ class CronService {
     setTimeout(async () => {
       try {
         console.log('[CronService] Running initial match sync...');
-        const aggregator = this.container.resolve('matchAggregator');
-        await aggregator.syncMatches();
-      } catch(e) {}
+        await this.matchAggregator.syncMatches();
+      } catch(e) {
+        console.error('[CronService] Match sync failed:', e.message);
+      }
     }, 1000);
   }
 }

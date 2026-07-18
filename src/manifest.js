@@ -41,6 +41,7 @@ const manifest = {
   behaviorHints: {
     adult: false,
     p2p: false,
+    configurable: true
   },
 };
 
