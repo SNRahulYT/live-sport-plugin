@@ -7,7 +7,10 @@ class StreamedPkProvider extends BaseProvider {
   constructor(opts) {
     super(opts);
     this.name = 'StreamedPk';
-    this.apiUrl = 'https://streamed.pk/api/matches/all';
+    
+    // Support dynamic domain fallback if streamed.pk changes
+    const domain = process.env.STREAMED_ORIGIN || 'https://streamed.pk';
+    this.apiUrl = `${domain}/api/matches/all`;
     
     this.fetchData = this.circuitBreaker.wrap(`${this.name}_fetch`, async () => {
       const res = await axios.get(this.apiUrl, { timeout: 7000 });
