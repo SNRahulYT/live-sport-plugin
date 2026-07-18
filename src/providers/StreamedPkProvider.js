@@ -40,25 +40,44 @@ class StreamedPkProvider extends BaseProvider {
     return matches;
   }
 
-  async resolveStream(sourceId, matchCategory, matchTitle, streamNo = '1', sourceName = 'admin') {
+  async resolveStream(sourceId, matchCategory, matchTitle, streamNoParam = null, sourceName = 'admin') {
+    const streams = [];
     try {
-      // By passing the embed.st URL directly, we completely bypass the streamed.pk watch page
-      const watchUrl = `https://embed.st/embed/${sourceName}/${sourceId}/${streamNo}`;
+      // 1. Fetch available streams for this source/id to know how many there are
+      const domain = process.env.STREAMED_ORIGIN || 'https://streamed.pk';
+      const streamListUrl = `${domain}/api/stream/${sourceName}/${sourceId}`;
+      let availableCount = 1; // fallback to 1 if we can't fetch the list
       
-      const resolveRes = await axios.post('http://localhost:3000/api/stream', { url: watchUrl }, { timeout: 15000 });
-      
-      if (resolveRes.data && resolveRes.data.relay) {
-        const proxyUrlObj = new URL(resolveRes.data.relay);
-        return [new StreamEntity({
-          name: `Nuvio HLS Proxy`,
-          title: `Streamed.pk (${sourceName})`,
-          url: proxyUrlObj.pathname + proxyUrlObj.search
-        })];
+      try {
+        const listRes = await axios.get(streamListUrl, { timeout: 5000 });
+        if (Array.isArray(listRes.data) && listRes.data.length > 0) {
+          availableCount = listRes.data.length;
+        }
+      } catch (e) {
+        console.warn(`[${this.name}] Could not fetch stream list for ${sourceName}/${sourceId}, defaulting to 1 stream`);
+      }
+
+      // 2. Resolve each available stream
+      for (let i = 1; i <= availableCount; i++) {
+        const streamNo = i.toString();
+        const watchUrl = `https://embed.st/embed/${sourceName}/${sourceId}/${streamNo}`;
+        
+        const resolveRes = await axios.post('http://localhost:3000/api/stream', { url: watchUrl }, { timeout: 15000 });
+        
+        if (resolveRes.data && resolveRes.data.relay) {
+          const proxyUrlObj = new URL(resolveRes.data.relay);
+          const titleSuffix = availableCount > 1 ? ` (${sourceName} - Stream ${streamNo})` : ` (${sourceName})`;
+          streams.push(new StreamEntity({
+            name: `Nuvio HLS Proxy`,
+            title: `Streamed.pk${titleSuffix}`,
+            url: proxyUrlObj.pathname + proxyUrlObj.search
+          }));
+        }
       }
     } catch (err) {
       console.error(`[${this.name}] resolveStream failed for ${sourceId}:`, err.message);
     }
-    return [];
+    return streams;
   }
 }
 

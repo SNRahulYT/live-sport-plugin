@@ -59,7 +59,7 @@ class SportyHunterProvider extends BaseProvider {
     return [new StreamEntity({
       name: 'Nuvio Web Player',
       title: `SportyHunter Stream`,
-      externalUrl: `${BASE_URL}/watch?url=${encodeURIComponent(this.baseUrl + '/match/' + sourceId)}&title=${encodeURIComponent(matchTitle)}`
+      externalUrl: `${this.baseUrl}/match/${sourceId}`
     })];
   }
 }

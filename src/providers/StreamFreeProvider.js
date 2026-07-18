@@ -84,7 +84,7 @@ class StreamFreeProvider extends BaseProvider {
       // Nuvio HLS Proxy URL
       const proxyUrlObj = new URL('http://localhost:3000/api/hls');
       proxyUrlObj.searchParams.set('url', targetUrl);
-      proxyUrlObj.searchParams.set('embed', 'echo/streamfree/1');
+      proxyUrlObj.searchParams.set('embed', 'streamfree/live/1');
       proxyUrlObj.searchParams.set('embedOrigin', 'https://streamfree.top');
       proxyUrlObj.searchParams.set('referer', 'https://streamfree.top/');
 

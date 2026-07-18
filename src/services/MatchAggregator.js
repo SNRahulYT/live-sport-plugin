@@ -71,7 +71,12 @@ class MatchAggregator {
       const titleLower = match.title.toLowerCase();
       
       // Parse kickoff date (default to 0 if none provided, assume live)
-      const kickoff = parseInt(match.date) || 0;
+      let kickoff = 0;
+      if (match.date) {
+        const parsed = Number(match.date);
+        kickoff = isNaN(parsed) ? new Date(match.date).getTime() : parsed;
+        if (isNaN(kickoff)) kickoff = 0;
+      }
       // Allow matches to be flagged as 'Live' from 3 hours before kickoff up to 14 hours after kickoff
       const isWithinTimeWindow = kickoff === 0 || (now >= kickoff - (3 * 3600 * 1000) && now <= kickoff + (14 * 3600 * 1000));
       
@@ -90,7 +95,12 @@ class MatchAggregator {
 
     // Filter out matches that are already over (kickoff was > 24 hours ago)
     const activeMatches = finalMatches.filter(match => {
-      const kickoff = parseInt(match.date) || 0;
+      let kickoff = 0;
+      if (match.date) {
+        const parsed = Number(match.date);
+        kickoff = isNaN(parsed) ? new Date(match.date).getTime() : parsed;
+        if (isNaN(kickoff)) kickoff = 0;
+      }
       if (kickoff === 0) return true; // Keep if we don't know the time
       
       const oneDayMs = 24 * 3600 * 1000;

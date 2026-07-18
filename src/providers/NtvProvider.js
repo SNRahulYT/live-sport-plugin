@@ -54,7 +54,7 @@ class NtvProvider extends BaseProvider {
     return [new StreamEntity({
       name: 'Nuvio Web Player',
       title: `NTV Stream`,
-      externalUrl: `${BASE_URL}/watch?url=${encodeURIComponent(sourceId)}&title=${encodeURIComponent(matchTitle)}`
+      externalUrl: sourceId
     })];
   }
 }

@@ -66,7 +66,7 @@ class GenericYamlProvider extends BaseProvider {
     return [new StreamEntity({
       name: 'Nuvio Web Player',
       title: `${this.name} (${matchTitle})`,
-      externalUrl: `${require('../config').BASE_URL}/watch?url=${encodeURIComponent(sourceId)}&title=${encodeURIComponent(matchTitle)}`
+      externalUrl: sourceId
     })];
   }
 }

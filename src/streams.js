@@ -18,10 +18,13 @@ async function handleStream(type, id) {
 
   const streams = [];
 
-  const SOURCE_PRIORITY = { admin: 1, echo: 1, golf: 1, delta: 1, 'streamfree': 2, 'timstreams': 3, 'bintv': 4 };
+  const SOURCE_PRIORITY = { admin: 1, echo: 1, golf: 1, delta: 1, 'streamfree': 2, 'timstreams': 3, 'bintv': 4, 'ntv': 5, 'sportyhunter': 6, 'streamsports': 7 };
   const sortedSources = [...match.sources].sort((a, b) => {
-    const pa = SOURCE_PRIORITY[a.source] ?? 99;
-    const pb = SOURCE_PRIORITY[b.source] ?? 99;
+    // If a source isn't in the list, but it's not one of our known fallback providers, 
+    // it's likely a new Streamed.pk source. Give it priority 1.5 so it stays near the top.
+    const getPriority = (src) => SOURCE_PRIORITY[src] ?? (['streamfree', 'timstreams', 'bintv', 'ntv', 'sportyhunter', 'streamsports'].includes(src) ? 99 : 1.5);
+    const pa = getPriority(a.source);
+    const pb = getPriority(b.source);
     if (pa !== pb) return pa - pb;
     if (a.source === 'bintv' && b.source === 'bintv') {
       const aIsDirect = a.url && (a.url.includes('.m3u8') || (a.url.includes('noooooads/?src=') && a.url.includes('.m3u8')));
