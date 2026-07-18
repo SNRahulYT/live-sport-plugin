@@ -171,12 +171,23 @@ async function handleStream(type, id) {
     else if (s.title && s.title.toLowerCase().includes('streamfree')) providerName = 'StreamFree';
     else if (s.title && s.title.toLowerCase().includes('24/7')) providerName = 'Direct IPTV';
 
-    s.name = `${icon} Nuvio`;
-    s.title = isWeb ? `🌐 [Web] ${providerName}` : `▶️ [${quality}] ${providerName}`;
+    s.name = `${icon} Nuvio\n${providerName}`;
+    
+    const typeIndicator = isWeb ? '🌐 Web Stream' : '▶️ Direct Stream';
+    s.title = `${typeIndicator}\n⚙️ Quality: ${quality} | ⭐️ Score: ${s.score || 0}`;
+    
+    // Add behaviorHints to group streams and handle CORS for direct streams
+    s.behaviorHints = s.behaviorHints || {};
+    s.behaviorHints.bingeGroup = `nuvio_sport_${matchId}`;
+    
+    // If it's a direct m3u8 stream and not routed through our proxy, mark it notWebReady
+    if (!isWeb && s.url && s.url.includes('.m3u8') && !s.url.includes('/api/hls')) {
+      s.behaviorHints.notWebReady = true;
+    }
     
     // Add extra info if present
-    if (s.title.includes('Direct IPTV') && s.url) {
-      s.title = `📺 [Live] 24/7 Network`;
+    if (providerName === 'Direct IPTV' && s.url) {
+      s.title = `📺 24/7 Live Network\n⚙️ Quality: ${quality} | ⭐️ Score: ${s.score || 0}`;
     }
   });
 

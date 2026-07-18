@@ -4,7 +4,24 @@ const container = require('./container');
 
 function mapMatchToMetaPreview(match) {
   const safeTitle = encodeURIComponent((match.title || 'Live Match').substring(0, 30));
-  const fallbackPoster = `https://placehold.co/800x450/111111/ef4444.png?text=${safeTitle}&font=Montserrat`;
+  
+  // Dynamic Sport-Specific Posters
+  const categoryColors = {
+    football: '10b981', // green
+    basketball: 'f97316', // orange
+    motorsport: 'ef4444', // red
+    cricket: '0ea5e9', // light blue
+    tennis: 'a3e635', // lime
+    rugby: '8b5cf6', // purple
+    american_football: '0369a1', // dark blue
+    baseball: 'f43f5e', // rose
+    hockey: '06b6d4', // cyan
+    golf: '22c55e', // emerald
+    darts: 'eab308', // yellow
+    networks: '64748b' // slate
+  };
+  const color = categoryColors[match.category] || '333333';
+  const fallbackPoster = `https://placehold.co/800x450/111111/${color}.png?text=${safeTitle}&font=Montserrat`;
   
   let poster = fallbackPoster;
   if (match.thumbnail_url) {
@@ -13,15 +30,34 @@ function mapMatchToMetaPreview(match) {
   let background = poster;
 
   let timeString = '24/7 Stream';
+  let relativeTimeStr = '';
+  
   if (match.date && !isNaN(parseInt(match.date)) && parseInt(match.date) > 0) {
      const dateObj = new Date(parseInt(match.date));
      timeString = dateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+     
+     const now = Date.now();
+     const diff = dateObj.getTime() - now;
+     if (diff > 0 && match.popular === '0') {
+       const hours = Math.floor(diff / (1000 * 60 * 60));
+       const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+       if (hours > 24) {
+         relativeTimeStr = ` (in ${Math.floor(hours / 24)} days)`;
+       } else if (hours > 0) {
+         relativeTimeStr = ` (in ${hours}h ${minutes}m)`;
+       } else {
+         relativeTimeStr = ` (in ${minutes} mins)`;
+       }
+     }
   }
 
-  const prefix = match.popular === '1' ? '🔴 LIVE: ' : '';
+  const prefix = match.popular === '1' ? '🔴 LIVE: ' : '⏱️ ';
   const cast = [];
   if (match.team1 && match.team1.name) cast.push(match.team1.name);
   if (match.team2 && match.team2.name) cast.push(match.team2.name);
+
+  const leagueStr = match.league ? `🏆 **League:** ${match.league}\n` : '';
+  const desc = `${leagueStr}📅 **Category:** ${match.category.toUpperCase()}\n⏰ **Status:** ${timeString === '24/7 Stream' ? '24/7 Live Network' : 'Kickoff at ' + timeString + relativeTimeStr}`;
 
   return {
     id: `nuvio_sport_${match.id}`,
@@ -33,8 +69,11 @@ function mapMatchToMetaPreview(match) {
     background: background,
     logo: match.team1 && match.team1.logo ? match.team1.logo : null,
     releaseInfo: timeString,
-    description: `🏆 League: ${match.league || 'Various'}\n📅 Category: ${match.category.toUpperCase()}\n⏰ ${timeString === '24/7 Stream' ? 'Status: 24/7 Live Network' : 'Kickoff: ' + timeString}`,
-    cast: cast
+    description: desc,
+    cast: cast,
+    behaviorHints: {
+      defaultVideoId: `nuvio_sport_${match.id}`
+    }
   };
 }
 
