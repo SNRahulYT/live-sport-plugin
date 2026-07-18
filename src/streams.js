@@ -131,10 +131,29 @@ async function handleStream(type, id) {
     else if (s.title && s.title.toLowerCase().includes('streamfree')) providerName = 'StreamFree';
     else if (s.title && s.title.toLowerCase().includes('24/7')) providerName = 'Direct IPTV';
 
+    let originalTitle = s.title || '';
+    let channelName = '';
+    if (originalTitle) {
+      const match = originalTitle.match(/\(([^)]+)\)/);
+      if (match && match[1]) {
+        const inner = match[1];
+        if (!inner.match(/^[0-9]{3,4}p$/i) && inner !== 'Auto' && !inner.toLowerCase().startsWith('stream')) {
+          channelName = inner;
+        }
+      } else if (!originalTitle.includes('Stream') && !originalTitle.includes('Auto')) {
+        channelName = originalTitle;
+      }
+    }
+    
     s.name = `${icon} Nuvio\n${providerName}`;
     
-    const typeIndicator = isWeb ? '🌐 Web Stream' : '▶️ Direct Stream';
-    s.title = `${typeIndicator}\n⚙️ Quality: ${quality} | ⭐️ Score: ${s.score || 0}`;
+    let typeIndicator = isWeb ? '🌐 Web Stream' : '▶️ Direct Stream';
+    if (channelName) {
+      channelName = channelName.split(/[ _-]/).map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ').trim();
+      typeIndicator = isWeb ? `🌐 ${channelName}` : `▶️ ${channelName}`;
+    }
+    
+    s.title = `${typeIndicator}\n⚙️ Quality: ${quality}`;
     
     // Add behaviorHints to group streams and handle CORS for direct streams
     s.behaviorHints = s.behaviorHints || {};
@@ -155,7 +174,7 @@ async function handleStream(type, id) {
     
     // Add extra info if present
     if (providerName === 'Direct IPTV' && s.url) {
-      s.title = `📺 24/7 Live Network\n⚙️ Quality: ${quality} | ⭐️ Score: ${s.score || 0}`;
+      s.title = `📺 ${channelName || '24/7 Live Network'}\n⚙️ Quality: ${quality}`;
     }
   });
 

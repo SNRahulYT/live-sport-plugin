@@ -18,6 +18,7 @@ function mapMatchToMetaPreview(match) {
     hockey: '06b6d4', // cyan
     golf: '22c55e', // emerald
     darts: 'eab308', // yellow
+    mma: 'dc2626', // crimson red
     networks: '64748b' // slate
   };
   const color = categoryColors[match.category] || '333333';
@@ -117,8 +118,18 @@ async function handleCatalog(type, id, extra) {
       filteredMatches = []; // If no config, return empty
     }
   } else if (categoryMatch === 'other') {
-    const knownCats = ['football', 'cricket', 'motorsport', 'basketball', 'american_football', 'rugby', 'baseball', 'tennis', 'hockey', 'darts', 'golf'];
-    filteredMatches = matches.filter(m => !knownCats.includes(m.category));
+    const topLevelCats = ['football', 'cricket', 'motorsport', 'networks'];
+    filteredMatches = matches.filter(m => !topLevelCats.includes(m.category));
+    
+    if (extra && extra.genre) {
+      const genre = extra.genre.toLowerCase().replace(' ', '_');
+      if (genre === 'other') {
+        const knownSubCats = ['basketball', 'mma', 'golf', 'tennis', 'rugby', 'american_football', 'baseball', 'hockey', 'darts'];
+        filteredMatches = filteredMatches.filter(m => !knownSubCats.includes(m.category));
+      } else {
+        filteredMatches = filteredMatches.filter(m => m.category === genre);
+      }
+    }
   } else if (categoryMatch !== 'catalog') {
     filteredMatches = matches.filter(m => m.category === categoryMatch);
   }
