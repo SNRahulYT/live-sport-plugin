@@ -185,6 +185,48 @@ async function handleStream(type, id) {
     }
   }
 
+  // Standardize Stream Labels
+  const sportIcons = {
+    football: '⚽', cricket: '🏏', motorsport: '🏎️',
+    basketball: '🏀', american_football: '🏈', rugby: '🏉', networks: '📺'
+  };
+  const icon = sportIcons[match.category] || '📡';
+  
+  const niceNames = {
+    streamfree: 'StreamFree', timstreams: 'TimStreams', bintv: 'BinTV',
+    ntv: 'NTV', sportyhunter: 'SportyHunter', streamsports: 'StreamSports',
+    'iptv-org': 'Direct IPTV'
+  };
+
+  streams.forEach(s => {
+    let quality = s.resolution || s.quality || 'Auto';
+    if (quality.includes('x')) {
+       const h = quality.split('x')[1];
+       quality = h + 'p';
+    }
+    
+    const isWeb = !!s.externalUrl || s.name === 'Nuvio Web Player';
+    // The scorer attached the sourceName as _source in calculateScore? No, we didn't attach it.
+    // Wait, streamScorer doesn't attach sourceName to s.
+    // I can determine providerName from the string it already had.
+    let providerName = niceNames[s._source] || niceNames[Object.keys(niceNames).find(k => s.title && s.title.toLowerCase().includes(k))] || 'Streamed.pk';
+    
+    if (s.title && s.title.toLowerCase().includes('timstreams')) providerName = 'TimStreams';
+    else if (s.title && s.title.toLowerCase().includes('bintv')) providerName = 'BinTV';
+    else if (s.title && s.title.toLowerCase().includes('ntv')) providerName = 'NTV';
+    else if (s.title && s.title.toLowerCase().includes('sporty')) providerName = 'SportyHunter';
+    else if (s.title && s.title.toLowerCase().includes('streamfree')) providerName = 'StreamFree';
+    else if (s.title && s.title.toLowerCase().includes('24/7')) providerName = 'Direct IPTV';
+
+    s.name = `${icon} Nuvio`;
+    s.title = isWeb ? `🌐 [Web] ${providerName}` : `▶️ [${quality}] ${providerName}`;
+    
+    // Add extra info if present
+    if (s.title.includes('Direct IPTV') && s.url) {
+      s.title = `📺 [Live] 24/7 Network`;
+    }
+  });
+
   // Sort streams by score descending
   streams.sort((a, b) => b.score - a.score);
 

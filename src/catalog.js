@@ -53,6 +53,12 @@ async function handleCatalog(type, id, extra) {
   
   let filteredMatches = matches;
   
+  if (extra && extra.config && extra.config.sports && extra.config.sports !== 'all') {
+    const allowedSports = extra.config.sports.toLowerCase().split(',').map(s => s.trim()).filter(Boolean);
+    // Don't filter out networks (24/7 TV) since they aren't tied to a specific sport
+    filteredMatches = filteredMatches.filter(m => m.category === 'networks' || allowedSports.includes(m.category) || allowedSports.includes('other'));
+  }
+  
   if (categoryMatch === 'live') {
     filteredMatches = matches.filter(m => m.popular === '1');
   } else if (categoryMatch === 'upcoming') {

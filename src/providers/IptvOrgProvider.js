@@ -27,12 +27,14 @@ class IptvOrgProvider extends BaseProvider {
       const data = await this.fetchData.fire();
       if (!data || !data.channels || !data.streams) return [];
 
-      // 1. Get all sports channels that are NOT closed
-      const sportsChannels = data.channels.filter(c => 
-        c.categories && 
-        c.categories.includes('sports') &&
-        !c.closed
-      );
+      // 1. Get major English sports channels
+      const keywords = ['espn', 'sky', 'fox', 'bein', 'eurosport', 'btsport', 'tnt', 'nbc', 'cbs', 'abc', 'tsn', 'sportsnet', 'nfl', 'nba', 'mlb', 'nhl', 'wwe', 'ufc', 'optus', 'super sport'];
+      const sportsChannels = data.channels.filter(c => {
+        if (!c.categories || !c.categories.includes('sports') || c.closed) return false;
+        if (!c.name) return false;
+        const nameLower = c.name.toLowerCase();
+        return keywords.some(kw => nameLower.includes(kw));
+      });
 
       // 2. Map channel ID to channel info
       const channelMap = new Map();
