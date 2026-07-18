@@ -38,103 +38,63 @@ async function handleStream(type, id) {
   const m3u8Parser = container.resolve('m3u8Parser');
   const streamScorer = container.resolve('streamScorer');
 
-  for (const src of sortedSources) {
-    const sourceName = src.source; 
+  const resolvePromises = sortedSources.map(async (src) => {
+    const sourceName = src.source;
+    let resStreams = [];
 
-    if (sourceName === 'streamfree') {
-      const provider = container.resolve('streamFreeProvider');
-      const sfCategory = src.original_category || match.category;
-      const resStreams = await provider.resolveStream(src.id, sfCategory, match.title);
-      
-      for (const s of resStreams) {
-        if (s.url && s.url.startsWith('/api/hls')) {
-          s.url = `${BASE_URL}${s.url}`;
+    try {
+      if (sourceName === 'streamfree') {
+        const provider = container.resolve('streamFreeProvider');
+        const sfCategory = src.original_category || match.category;
+        resStreams = await provider.resolveStream(src.id, sfCategory, match.title);
+        for (const s of resStreams) {
+          if (s.url && s.url.startsWith('/api/hls')) {
+            s.url = `${BASE_URL}${s.url}`;
+          }
         }
-        s.score = streamScorer.calculateScore(s, sourceName);
-        s._source = sourceName;
-        streams.push(s);
+      } else if (sourceName === 'timstreams') {
+        const provider = container.resolve('timStreamsProvider');
+        resStreams = await provider.resolveStream(src.id, match.category, match.title);
+      } else if (sourceName === 'bintv') {
+        const provider = container.resolve('binTvProvider');
+        resStreams = await provider.resolveStream(src.id, match.category, match.title);
+      } else if (sourceName === 'ntv') {
+        const provider = container.resolve('ntvProvider');
+        resStreams = await provider.resolveStream(src.id, match.category, match.title);
+      } else if (sourceName === 'sportyhunter') {
+        const provider = container.resolve('sportyHunterProvider');
+        resStreams = await provider.resolveStream(src.id, match.category, match.title);
+      } else if (sourceName === 'streamsports') {
+        const provider = container.resolve('streamSportsProvider');
+        resStreams = await provider.resolveStream(src.id, match.category, match.title);
+      } else if (sourceName === 'iptv-org') {
+        resStreams = [{
+          name: 'Nuvio Direct',
+          title: `24/7 TV (${src.quality || 'Auto'})`,
+          url: src.url,
+          resolution: src.quality
+        }];
+      } else {
+        // Streamed.pk
+        const provider = container.resolve('streamedPkProvider');
+        resStreams = await provider.resolveStream(src.id, match.category, match.title, '1', sourceName);
       }
-      continue;
-    }
 
-    if (sourceName === 'timstreams') {
-      const provider = container.resolve('timStreamsProvider');
-      const resStreams = await provider.resolveStream(src.id, match.category, match.title);
       for (const s of resStreams) {
         s.score = streamScorer.calculateScore(s, sourceName);
         s._source = sourceName;
-        streams.push(s);
       }
-      continue;
+    } catch (e) {
+      console.warn(`[streams.js] Error resolving ${sourceName} for ${src.id}:`, e.message);
     }
+    
+    return resStreams;
+  });
 
-    if (sourceName === 'bintv') {
-      const provider = container.resolve('binTvProvider');
-      const resStreams = await provider.resolveStream(src.id, match.category, match.title);
-      for (const s of resStreams) {
-        s.score = streamScorer.calculateScore(s, sourceName);
-        s._source = sourceName;
-        streams.push(s);
-      }
-      continue;
-    }
-
-    if (sourceName === 'ntv') {
-      const provider = container.resolve('ntvProvider');
-      const resStreams = await provider.resolveStream(src.id, match.category, match.title);
-      for (const s of resStreams) {
-        s.score = streamScorer.calculateScore(s, sourceName);
-        s._source = sourceName;
-        streams.push(s);
-      }
-      continue;
-    }
-
-    if (sourceName === 'sportyhunter') {
-      const provider = container.resolve('sportyHunterProvider');
-      const resStreams = await provider.resolveStream(src.id, match.category, match.title);
-      for (const s of resStreams) {
-        s.score = streamScorer.calculateScore(s, sourceName);
-        s._source = sourceName;
-        streams.push(s);
-      }
-      continue;
-    }
-
-    if (sourceName === 'streamsports') {
-      const provider = container.resolve('streamSportsProvider');
-      const resStreams = await provider.resolveStream(src.id, match.category, match.title);
-      for (const s of resStreams) {
-        s.score = streamScorer.calculateScore(s, sourceName);
-        s._source = sourceName;
-        streams.push(s);
-      }
-      continue;
-    }
-
-    if (sourceName === 'iptv-org') {
-      const s = {
-        name: 'Nuvio Direct',
-        title: `24/7 TV (${src.quality || 'Auto'})`,
-        url: src.url,
-        resolution: src.quality
-      };
-      s.score = streamScorer.calculateScore(s, sourceName);
-      s._source = sourceName;
-      streams.push(s);
-      continue;
-    }
-
-    // Streamed.pk
-    const provider = container.resolve('streamedPkProvider');
-    const resStreams = await provider.resolveStream(src.id, match.category, match.title, '1', sourceName);
-    for (const s of resStreams) {
-      if (s.url && s.url.startsWith('/api/hls')) {
-        s.url = `${BASE_URL}${s.url}`;
-      }
-      s.score = streamScorer.calculateScore(s, sourceName);
-      s._source = sourceName;
-      streams.push(s);
+  const results = await Promise.allSettled(resolvePromises);
+  for (const result of results) {
+    if (result.status === 'fulfilled' && Array.isArray(result.value)) {
+      streams.push(...result.value);
     }
   }
 
@@ -183,6 +143,14 @@ async function handleStream(type, id) {
     // If it's a direct m3u8 stream and not routed through our proxy, mark it notWebReady
     if (!isWeb && s.url && s.url.includes('.m3u8') && !s.url.includes('/api/hls')) {
       s.behaviorHints.notWebReady = true;
+      if (providerName === 'Streamed.pk') {
+        s.behaviorHints.proxyHeaders = {
+          request: {
+            "Referer": "https://embed.st/",
+            "Origin": "https://embed.st"
+          }
+        };
+      }
     }
     
     // Add extra info if present

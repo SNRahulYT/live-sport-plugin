@@ -57,20 +57,31 @@ class StreamedPkProvider extends BaseProvider {
         console.warn(`[${this.name}] Could not fetch stream list for ${sourceName}/${sourceId}, defaulting to 1 stream`);
       }
 
-      // 2. Resolve each available stream
+      // 2. Resolve each available stream concurrently
+      const resolvePromises = [];
       for (let i = 1; i <= availableCount; i++) {
         const streamNo = i.toString();
         const watchUrl = `https://embed.st/embed/${sourceName}/${sourceId}/${streamNo}`;
         
-        const resolveRes = await axios.post('http://localhost:3000/api/stream', { url: watchUrl }, { timeout: 15000 });
-        
-        if (resolveRes.data && resolveRes.data.relay) {
-          const proxyUrlObj = new URL(resolveRes.data.relay);
-          const titleSuffix = availableCount > 1 ? ` (${sourceName} - Stream ${streamNo})` : ` (${sourceName})`;
+        resolvePromises.push(
+          axios.post('http://localhost:3000/api/stream', { url: watchUrl }, { timeout: 15000 })
+            .then(resolveRes => ({ streamNo, data: resolveRes.data }))
+            .catch(err => {
+              console.warn(`[${this.name}] resolve failed for ${watchUrl}:`, err.message);
+              return null;
+            })
+        );
+      }
+
+      const results = await Promise.all(resolvePromises);
+
+      for (const res of results) {
+        if (res && res.data && res.data.m3u8) {
+          const titleSuffix = availableCount > 1 ? ` (${sourceName} - Stream ${res.streamNo})` : ` (${sourceName})`;
           streams.push(new StreamEntity({
-            name: `Nuvio HLS Proxy`,
+            name: `Nuvio Direct`,
             title: `Streamed.pk${titleSuffix}`,
-            url: proxyUrlObj.pathname + proxyUrlObj.search
+            url: res.data.m3u8
           }));
         }
       }
