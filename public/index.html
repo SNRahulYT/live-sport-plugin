@@ -157,7 +157,7 @@
         }
 
         if (data.streams.length === 1) {
-          playStreamUrl(data.streams[0].url);
+          playStreamUrl(data.streams[0].url, data.streams[0]);
         } else {
           document.getElementById('loader').style.display = 'none';
           const selector = document.getElementById('source-selector');
@@ -171,7 +171,7 @@
             btn.onclick = () => {
               selector.style.display = 'none';
               document.getElementById('loader').style.display = 'flex';
-              playStreamUrl(stream.url);
+              playStreamUrl(stream.url, stream);
             };
             btnContainer.appendChild(btn);
           });
@@ -185,10 +185,22 @@
       }
     }
 
-    function playStreamUrl(url) {
+    function playStreamUrl(url, streamObj = null) {
+      if (streamObj && streamObj.externalUrl) {
+        window.open(streamObj.externalUrl, '_blank');
+        closePlayer();
+        return;
+      }
+      
       const video = document.getElementById('video');
       document.getElementById('loader').style.display = 'none';
       video.style.opacity = '1';
+
+      if (!url) {
+        alert('This stream cannot be played in the browser directly.');
+        closePlayer();
+        return;
+      }
 
       if (Hls.isSupported()) {
         if (hls) hls.destroy();
