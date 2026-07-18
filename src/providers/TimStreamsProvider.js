@@ -58,6 +58,31 @@ class TimStreamsProvider extends BaseProvider {
     }
     return matches;
   }
+
+  async resolveStream(sourceId, matchCategory, matchTitle, streamNoParam = null, sourceName = 'timstreams') {
+    const streams = [];
+    try {
+      const matches = await this.getMatches();
+      const match = matches.find(m => m.id === `ts_${sourceId}` || m.sources.some(s => s.id === sourceId));
+      let watchUrl = `https://logic.icelanders.st/embed/${sourceId}`;
+      
+      if (match) {
+        const src = match.sources.find(s => s.id === sourceId);
+        if (src && src.url) watchUrl = src.url;
+      }
+      
+      const StreamEntity = require('../domain/StreamEntity');
+      // TimStreams feeds are obfuscated, use the external web player.
+      streams.push(new StreamEntity({
+        name: `Nuvio Web Player`,
+        title: `TimStreams (${sourceId})`,
+        externalUrl: `/watch?url=${encodeURIComponent(watchUrl)}&title=${encodeURIComponent(matchTitle || 'Live Event')}`
+      }));
+    } catch (err) {
+      console.error(`[${this.name}] resolveStream failed for ${sourceId}:`, err.message);
+    }
+    return streams;
+  }
 }
 
 module.exports = TimStreamsProvider;

@@ -57,28 +57,12 @@ async function handleStream(type, id) {
     }
 
     if (sourceName === 'timstreams') {
-      let url = src.url;
-      if (url && url.includes('.m3u8')) {
-        const qualityInfo = await m3u8Parser.getHighestQuality(url);
-        const titleSuffix = qualityInfo ? ` (${qualityInfo.label})` : ` (${src.id})`;
-        const s = {
-          name: 'Nuvio Direct',
-          title: `TimStreams${titleSuffix}`,
-          url: url,
-          resolution: qualityInfo ? qualityInfo.resolution : null
-        };
+      const provider = container.resolve('timStreamsProvider');
+      const resStreams = await provider.resolveStream(src.id, match.category, match.title);
+      for (const s of resStreams) {
         s.score = streamScorer.calculateScore(s, sourceName);
         streams.push(s);
-        continue;
       }
-      const externalUrl = `${BASE_URL}/watch?url=${encodeURIComponent(url)}&title=${encodeURIComponent(match.title)}`;
-      const s = {
-        name: 'Nuvio Web Player',
-        title: `TimStreams (${src.id})`,
-        externalUrl: externalUrl
-      };
-      s.score = streamScorer.calculateScore(s, sourceName);
-      streams.push(s);
       continue;
     }
 

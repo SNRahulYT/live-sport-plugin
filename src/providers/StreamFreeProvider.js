@@ -54,7 +54,7 @@ class StreamFreeProvider extends BaseProvider {
         return axios.get(embedUrl, { timeout: 10000 }).then(r => r.data);
       });
       
-      const html = await embedFetcher();
+      const html = await embedFetcher.fire();
       if (!html) return [];
 
       const match = html.match(/const\s+_0x\s*=\s*(\{.*?\});/);
