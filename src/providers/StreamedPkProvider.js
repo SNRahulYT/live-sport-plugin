@@ -1,4 +1,4 @@
-const axios = require('axios');
+
 const BaseProvider = require('./BaseProvider');
 const MatchEntity = require('../domain/MatchEntity');
 const StreamEntity = require('../domain/StreamEntity');
@@ -14,8 +14,9 @@ class StreamedPkProvider extends BaseProvider {
     
     this.fetchData = this.circuitBreaker.wrap(`${this.name}_fetch`, async () => {
       const headers = { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/127.0.0.0 Safari/537.36' };
-      const res = await axios.get(this.apiUrl, { headers, timeout: 7000 });
-      return res.data;
+      const res = await fetch(this.apiUrl, { headers, signal: AbortSignal.timeout(7000) });
+      if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
+      return await res.json();
     });
   }
 
@@ -36,7 +37,7 @@ class StreamedPkProvider extends BaseProvider {
         }));
       });
     } catch (error) {
-      console.error(`[${this.name}] Error fetching matches:`, error.message);
+      console.error(`[${this.name}] Error fetching matches:`, error);
     }
     return matches;
   }
@@ -51,9 +52,12 @@ class StreamedPkProvider extends BaseProvider {
       
       try {
         const headers = { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/127.0.0.0 Safari/537.36' };
-        const listRes = await axios.get(streamListUrl, { headers, timeout: 5000 });
-        if (Array.isArray(listRes.data) && listRes.data.length > 0) {
-          availableCount = listRes.data.length;
+        const res = await fetch(streamListUrl, { headers, signal: AbortSignal.timeout(5000) });
+        if (res.ok) {
+          const listData = await res.json();
+          if (Array.isArray(listData) && listData.length > 0) {
+            availableCount = listData.length;
+          }
         }
       } catch (e) {
         console.warn(`[${this.name}] Could not fetch stream list for ${sourceName}/${sourceId}, defaulting to 1 stream`);
@@ -67,8 +71,15 @@ class StreamedPkProvider extends BaseProvider {
         
         resolveTasks.push(async () => {
           try {
-            const resolveRes = await axios.post('http://127.0.0.1:3000/api/stream', { url: watchUrl }, { timeout: 15000 });
-            return { streamNo, data: resolveRes.data };
+            const res = await fetch('http://127.0.0.1:3000/api/stream', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ url: watchUrl }),
+              signal: AbortSignal.timeout(15000)
+            });
+            if (!res.ok) throw new Error(`Resolver status: ${res.status}`);
+            const data = await res.json();
+            return { streamNo, data };
           } catch (err) {
             console.warn(`[${this.name}] resolve failed for ${watchUrl}:`, err.message);
             return null;
