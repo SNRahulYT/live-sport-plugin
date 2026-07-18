@@ -5,7 +5,13 @@ import { segmentBody } from './segment.js'
 const cors = { 'Access-Control-Allow-Origin': '*' }
 
 function absUri(uri, base) {
-  return uri.startsWith('http') ? uri : new URL(uri, base).href
+  if (uri.startsWith('http')) return uri
+  const b = new URL(base)
+  const u = new URL(uri, base)
+  for (const [k, v] of b.searchParams.entries()) {
+    if (!u.searchParams.has(k)) u.searchParams.set(k, v)
+  }
+  return u.href
 }
 
 function isPlaylist(body) {
