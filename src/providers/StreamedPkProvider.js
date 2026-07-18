@@ -65,7 +65,7 @@ class StreamedPkProvider extends BaseProvider {
         
         resolveTasks.push(async () => {
           try {
-            const resolveRes = await axios.post('http://localhost:3000/api/stream', { url: watchUrl }, { timeout: 15000 });
+            const resolveRes = await axios.post('http://127.0.0.1:3000/api/stream', { url: watchUrl }, { timeout: 15000 });
             return { streamNo, data: resolveRes.data };
           } catch (err) {
             console.warn(`[${this.name}] resolve failed for ${watchUrl}:`, err.message);
@@ -82,14 +82,18 @@ class StreamedPkProvider extends BaseProvider {
       }
 
       for (const res of results) {
-        if (res && res.data && res.data.m3u8) {
-          const titleSuffix = availableCount > 1 ? ` (${sourceName} - Stream ${res.streamNo})` : ` (${sourceName})`;
-          streams.push(new StreamEntity({
-            name: `Nuvio Direct`,
-            title: `Streamed.pk${titleSuffix}`,
-            url: res.data.m3u8,
-            externalUrl: `/watch?url=${encodeURIComponent(watchUrl)}&title=${encodeURIComponent(matchTitle)}`
-          }));
+        if (res && res.data) {
+          if (res.data.m3u8) {
+            const titleSuffix = availableCount > 1 ? ` (${sourceName} - Stream ${res.streamNo})` : ` (${sourceName})`;
+            streams.push(new StreamEntity({
+              name: `Nuvio Direct`,
+              title: `Streamed.pk${titleSuffix}`,
+              url: res.data.m3u8,
+              externalUrl: `/watch?url=${encodeURIComponent(watchUrl)}&title=${encodeURIComponent(matchTitle)}`
+            }));
+          } else {
+            console.warn(`[${this.name}] resolve success but no m3u8. Data:`, res.data);
+          }
         }
       }
     } catch (err) {

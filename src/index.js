@@ -77,7 +77,7 @@ app.get('/configure', (req, res) => {
 
 // Mount the HLS Video Proxy (routes to the internal resolver on port RESOLVER_PORT)
 app.use('/api', createProxyMiddleware({
-  target: `http://localhost:${RESOLVER_PORT}/api`,
+  target: `http://127.0.0.1:${RESOLVER_PORT}/api`,
   changeOrigin: true,
   logLevel: 'debug',
   onError: (err, req, res) => {
