@@ -87,13 +87,13 @@ class MatchAggregator {
       }
     });
 
-    // Filter out matches that are already over (kickoff was > 6 hours ago)
+    // Filter out matches that are already over (kickoff was > 24 hours ago)
     const activeMatches = finalMatches.filter(match => {
       const kickoff = parseInt(match.date) || 0;
       if (kickoff === 0) return true; // Keep if we don't know the time
       
-      const sixHoursMs = 6 * 3600 * 1000;
-      return now <= kickoff + sixHoursMs;
+      const oneDayMs = 24 * 3600 * 1000;
+      return now <= kickoff + oneDayMs;
     });
 
     console.log(`[MatchAggregator] Sync complete. Merged ${activeMatches.length} active events.`);
