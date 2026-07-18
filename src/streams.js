@@ -67,51 +67,12 @@ async function handleStream(type, id) {
     }
 
     if (sourceName === 'bintv') {
-      let url = src.url;
-      if (url && url.includes('noooooads/?src=') && url.includes('.m3u8')) {
-        url = decodeURIComponent(url.split('?src=')[1]);
-      }
-      if (url && url.includes('.m3u8')) {
-        const qualityInfo = await m3u8Parser.getHighestQuality(url);
-        const titleSuffix = qualityInfo ? ` (${qualityInfo.label})` : ` (${src.id})`;
-        const s = {
-          name: 'Nuvio Direct',
-          title: `BinTV${titleSuffix}`,
-          url: url,
-          resolution: qualityInfo ? qualityInfo.resolution : null
-        };
+      const provider = container.resolve('binTvProvider');
+      const resStreams = await provider.resolveStream(src.id, match.category, match.title);
+      for (const s of resStreams) {
         s.score = streamScorer.calculateScore(s, sourceName);
         streams.push(s);
-        continue;
       }
-      if (url && url.includes('streamfree.top/embed')) {
-        try {
-          const urlObj = new URL(url);
-          const parts = urlObj.pathname.split('/').filter(Boolean);
-          if (parts.length >= 3) {
-            const provider = container.resolve('streamFreeProvider');
-            const resStreams = await provider.resolveStream(parts[2], parts[1], match.title);
-            for (const s of resStreams) {
-              if (s.url && s.url.startsWith('/api/hls')) {
-                s.url = `${BASE_URL}${s.url}`;
-              }
-              s.title = `BinTV StreamFree (${s.resolution || 'Auto'})`;
-              s.score = streamScorer.calculateScore(s, sourceName);
-              streams.push(s);
-            }
-          }
-        } catch (e) {}
-        continue;
-      }
-
-      const externalUrl = `${BASE_URL}/watch?url=${encodeURIComponent(url)}&title=${encodeURIComponent(match.title)}`;
-      const s = {
-        name: 'Nuvio Web Player',
-        title: `BinTV External (${src.id})`,
-        externalUrl: externalUrl
-      };
-      s.score = streamScorer.calculateScore(s, sourceName);
-      streams.push(s);
       continue;
     }
 

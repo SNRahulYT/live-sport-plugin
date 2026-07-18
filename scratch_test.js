@@ -1,15 +1,10 @@
 const axios = require('axios');
-axios.get('https://logic.icelanders.st/embed/dirtvision-1')
-  .then(r => {
-    const html = r.data;
-    const scripts = html.match(/<script[\s\S]*?<\/script>/gi);
-    if (scripts) {
-      scripts.forEach(s => {
-        if (s.includes('function') && s.includes('String.fromCharCode')) {
-           console.log("=== OBFUSCATED SCRIPT ===");
-           console.log(s);
-        }
-      });
-    }
-  })
-  .catch(e => console.error(e.message));
+axios.get('https://www.bintv.cc/', {
+  headers: {
+    'User-Agent': 'Mozilla/5.0'
+  }
+}).then(r => {
+  const html = r.data;
+  console.log("PPV_API_URL:", html.match(/const\s+PPV_API_URL\s*=\s*['"]([^'"]+)['"]/)?.[1]);
+  console.log("STREAMED_IMAGES_URL:", html.match(/const\s+STREAMED_IMAGES_URL\s*=\s*['"]([^'"]+)['"]/)?.[1]);
+}).catch(e => console.error(e.message));
