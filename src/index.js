@@ -66,12 +66,18 @@ app.use(cors());
 app.use(express.static(path.join(__dirname, '..', 'public'), { index: false }));
 
 app.get('/', (req, res) => {
-  res.sendFile(path.join(__dirname, '..', 'public', 'configure.html'));
+  res.sendFile(path.join(__dirname, '..', 'public', 'index.html'));
 });
 
 app.get('/configure', (req, res) => {
   res.sendFile(path.join(__dirname, '..', 'public', 'configure.html'));
 });
+
+app.get('/api/matches', (req, res) => {
+  const matches = container.resolve('cacheService').getMatches();
+  res.json(matches);
+});
+
 
 // Mount the HLS Video Proxy (routes to the internal resolver on port RESOLVER_PORT)
 app.use('/api', createProxyMiddleware({
