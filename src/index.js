@@ -117,7 +117,7 @@ app.get('/watch', (req, res) => {
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
-  <meta name="referrer" content="no-referrer-when-downgrade">
+  <meta name="referrer" content="no-referrer">
   <title>\uD83D\uDD34 ${safeTitle} | Live Sports</title>
   <style>
     *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
@@ -201,6 +201,7 @@ app.get('/watch', (req, res) => {
     allow="autoplay; encrypted-media; fullscreen; picture-in-picture; accelerometer; gyroscope"
     scrolling="no"
     loading="eager"
+    sandbox="allow-scripts allow-same-origin allow-forms allow-presentation allow-popups"
   ></iframe>
 
   <video id="video-player" controls autoplay playsinline></video>
