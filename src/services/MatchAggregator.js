@@ -63,12 +63,21 @@ class MatchAggregator {
 
     const finalMatches = Array.from(mergedMap.values());
     
-    // Smart Trending Engine: Boost popular matches globally
-    const TRENDING_KEYWORDS = ['real madrid', 'barcelona', 'manchester', 'arsenal', 'liverpool', 'chelsea', 'bayern', 'psg', 'lakers', 'warriors', 'mcgregor', 'super bowl', 'champions league', 'el clasico'];
+    // Smart Trending Engine: Boost popular matches globally, but only if they are actually live or starting soon
+    const TRENDING_KEYWORDS = ['real madrid', 'barcelona', 'manchester', 'arsenal', 'liverpool', 'chelsea', 'bayern', 'psg', 'lakers', 'warriors', 'mcgregor', 'super bowl', 'champions league', 'el clasico', 'f1', 'formula 1', 'grand prix'];
+    const now = Date.now();
+    
     finalMatches.forEach(match => {
       const titleLower = match.title.toLowerCase();
       if (TRENDING_KEYWORDS.some(kw => titleLower.includes(kw))) {
-        match.popular = '1';
+        // Parse kickoff date (default to 0 if none provided, assume live)
+        const kickoff = parseInt(match.date) || 0;
+        
+        // Boost if there's no date (could be live), OR if the match is within a window of -3 hours to +3 hours from now.
+        // This prevents flagging a match happening in 3 days as "🔴 Live Now".
+        if (kickoff === 0 || (now >= kickoff - (3 * 3600 * 1000) && now <= kickoff + (3 * 3600 * 1000))) {
+          match.popular = '1';
+        }
       }
     });
 
