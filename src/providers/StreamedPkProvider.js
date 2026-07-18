@@ -87,7 +87,8 @@ class StreamedPkProvider extends BaseProvider {
           streams.push(new StreamEntity({
             name: `Nuvio Direct`,
             title: `Streamed.pk${titleSuffix}`,
-            url: res.data.m3u8
+            url: res.data.m3u8,
+            externalUrl: `/watch?url=${encodeURIComponent(watchUrl)}&title=${encodeURIComponent(matchTitle)}`
           }));
         }
       }

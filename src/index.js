@@ -285,6 +285,12 @@ app.get('/watch', (req, res) => {
     const p2pStatus = document.getElementById('p2p-status');
     const targetUrl = "${safeUrl}";
     const isM3u8 = targetUrl.includes('.m3u8');
+    
+    // Auto-proxy m3u8 urls through our local server to completely bypass CORS in the browser!
+    let finalUrl = targetUrl;
+    if (isM3u8 && !targetUrl.includes('/api/hls')) {
+      finalUrl = '/api/hls?url=' + encodeURIComponent(targetUrl) + '&referer=' + encodeURIComponent('https://embed.st/') + '&embedOrigin=' + encodeURIComponent('https://embed.st');
+    }
 
     if (isM3u8) {
       iframe.style.display = 'none';
@@ -304,7 +310,7 @@ app.get('/watch', (req, res) => {
         });
 
         p2pml.hlsjs.initHlsJsPlayer(hls);
-        hls.loadSource(targetUrl);
+        hls.loadSource(finalUrl);
         hls.attachMedia(video);
         hls.on(Hls.Events.MANIFEST_PARSED, () => {
           video.play().catch(e => console.log('Autoplay blocked'));
@@ -312,14 +318,14 @@ app.get('/watch', (req, res) => {
         });
       } else if (Hls.isSupported()) {
         const hls = new Hls();
-        hls.loadSource(targetUrl);
+        hls.loadSource(finalUrl);
         hls.attachMedia(video);
         hls.on(Hls.Events.MANIFEST_PARSED, () => {
           video.play();
           loader.classList.add('hidden');
         });
       } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
-        video.src = targetUrl;
+        video.src = finalUrl;
         video.addEventListener('loadedmetadata', () => {
           video.play();
           loader.classList.add('hidden');

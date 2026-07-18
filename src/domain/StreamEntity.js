@@ -3,10 +3,10 @@ class StreamEntity {
     this.name = name || 'Unknown Proxy';
     this.title = title || 'Unknown Stream';
     
-    // Either url or externalUrl must be provided for Stremio to play it
     if (url) {
       this.url = url;
-    } else if (externalUrl) {
+    }
+    if (externalUrl) {
       this.externalUrl = externalUrl;
     }
 
