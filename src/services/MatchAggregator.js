@@ -72,7 +72,8 @@ class MatchAggregator {
       
       // Parse kickoff date (default to 0 if none provided, assume live)
       const kickoff = parseInt(match.date) || 0;
-      const isWithinTimeWindow = kickoff === 0 || (now >= kickoff - (3 * 3600 * 1000) && now <= kickoff + (4 * 3600 * 1000));
+      // Allow matches to be flagged as 'Live' from 3 hours before kickoff up to 14 hours after kickoff
+      const isWithinTimeWindow = kickoff === 0 || (now >= kickoff - (3 * 3600 * 1000) && now <= kickoff + (14 * 3600 * 1000));
       
       if (TRENDING_KEYWORDS.some(kw => titleLower.includes(kw))) {
         if (isWithinTimeWindow) {
