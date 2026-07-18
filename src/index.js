@@ -147,6 +147,58 @@ app.use('/stream/', (req, res, next) => {
   next();
 });
 
+// ─── Dynamic Manifest based on Config ─────────────────────────────────────────
+app.get('/:config?/manifest.json', (req, res, next) => {
+  const { manifest } = require('./manifest');
+  let configStr = req.params.config;
+  let parsedConfig = {};
+  if (configStr) {
+    // If there is a config string but it's not JSON, skip custom handling
+    if (!configStr.startsWith('%7B') && !configStr.startsWith('{')) {
+      return next();
+    }
+    try {
+      parsedConfig = JSON.parse(decodeURIComponent(configStr));
+    } catch (e) {
+      return next();
+    }
+  }
+
+  // Clone manifest catalogs
+  const newManifest = JSON.parse(JSON.stringify(manifest));
+  
+  if (parsedConfig.sports && parsedConfig.sports !== 'all') {
+    const enabledSports = parsedConfig.sports.split(',');
+    
+    // General catalogs to always keep
+    const keepCatalogs = ['nuvio_sports_live', 'nuvio_sports_networks', 'nuvio_sports_upcoming', 'nuvio_sports_teams'];
+    
+    // Add specific catalogs based on selection
+    if (enabledSports.includes('football')) keepCatalogs.push('nuvio_sports_football');
+    if (enabledSports.includes('cricket')) keepCatalogs.push('nuvio_sports_cricket');
+    if (enabledSports.includes('motorsport')) keepCatalogs.push('nuvio_sports_motorsport');
+    
+    // "Other Sports" contains these genres
+    const otherSports = ['basketball', 'american_football', 'rugby', 'other'];
+    const hasOther = enabledSports.some(s => otherSports.includes(s));
+    if (hasOther) {
+      keepCatalogs.push('nuvio_sports_other');
+    }
+    
+    newManifest.catalogs = newManifest.catalogs.filter(c => keepCatalogs.includes(c.id));
+  }
+  
+  // Remove teams catalog if the user hasn't configured any teams
+  if (!parsedConfig.teams || parsedConfig.teams.trim() === '') {
+    newManifest.catalogs = newManifest.catalogs.filter(c => c.id !== 'nuvio_sports_teams');
+  }
+
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Headers', '*');
+  res.setHeader('Content-Type', 'application/json');
+  res.send(newManifest);
+});
+
 // Mount the Stremio addon router
 app.use(getRouter(builder.getInterface()));
 
