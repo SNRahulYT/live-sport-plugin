@@ -63,7 +63,7 @@ const app = express();
 app.use(cors());
 
 // Serve the web debugger UI and Configuration Page
-app.use(express.static(path.join(__dirname, '..', 'public')));
+app.use(express.static(path.join(__dirname, '..', 'public'), { index: false }));
 
 app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, '..', 'public', 'configure.html'));
