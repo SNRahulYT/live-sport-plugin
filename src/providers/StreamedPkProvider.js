@@ -57,23 +57,29 @@ class StreamedPkProvider extends BaseProvider {
         console.warn(`[${this.name}] Could not fetch stream list for ${sourceName}/${sourceId}, defaulting to 1 stream`);
       }
 
-      // 2. Resolve each available stream concurrently
-      const resolvePromises = [];
+      // 2. Resolve each available stream with a concurrency limit of 2 to prevent OOM
+      const resolveTasks = [];
       for (let i = 1; i <= availableCount; i++) {
         const streamNo = i.toString();
         const watchUrl = `https://embed.st/embed/${sourceName}/${sourceId}/${streamNo}`;
         
-        resolvePromises.push(
-          axios.post('http://localhost:3000/api/stream', { url: watchUrl }, { timeout: 15000 })
-            .then(resolveRes => ({ streamNo, data: resolveRes.data }))
-            .catch(err => {
-              console.warn(`[${this.name}] resolve failed for ${watchUrl}:`, err.message);
-              return null;
-            })
-        );
+        resolveTasks.push(async () => {
+          try {
+            const resolveRes = await axios.post('http://localhost:3000/api/stream', { url: watchUrl }, { timeout: 15000 });
+            return { streamNo, data: resolveRes.data };
+          } catch (err) {
+            console.warn(`[${this.name}] resolve failed for ${watchUrl}:`, err.message);
+            return null;
+          }
+        });
       }
 
-      const results = await Promise.all(resolvePromises);
+      const results = [];
+      for (let i = 0; i < resolveTasks.length; i += 2) {
+        const chunk = resolveTasks.slice(i, i + 2).map(task => task());
+        const chunkResults = await Promise.all(chunk);
+        results.push(...chunkResults);
+      }
 
       for (const res of results) {
         if (res && res.data && res.data.m3u8) {
