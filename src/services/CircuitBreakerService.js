@@ -24,8 +24,9 @@ class CircuitBreakerService {
 
     const breaker = new CircuitBreaker(asyncFunction, options);
     
-    breaker.fallback(() => {
-      console.warn(`[CircuitBreaker] ${name} is OPEN. Returning fallback (null/[]).`);
+    breaker.fallback((err) => {
+      const reason = err ? err.message : 'Unknown';
+      console.warn(`[CircuitBreaker] ${name} Fallback triggered. Reason: ${reason}`);
       return null;
     });
 

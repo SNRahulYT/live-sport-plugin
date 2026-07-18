@@ -25,6 +25,10 @@ const { handleStream } = require('./streams');
 const { PORT, BASE_URL } = require('./config');
 const container = require('./container');
 
+// Set a global User-Agent for all axios requests to prevent 403 Forbidden errors from strict firewalls
+const axios = require('axios');
+axios.defaults.headers.common['User-Agent'] = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36';
+
 // ─── Spawn the Streamed.pk Resolver ───────────────────────────────────────────
 
 const RESOLVER_PORT = process.env.RESOLVER_PORT || '3000';
