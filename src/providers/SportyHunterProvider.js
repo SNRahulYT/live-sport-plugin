@@ -4,6 +4,8 @@ const BaseProvider = require('./BaseProvider');
 const MatchEntity = require('../domain/MatchEntity');
 const StreamEntity = require('../domain/StreamEntity');
 
+const { BASE_URL } = require('../config');
+
 class SportyHunterProvider extends BaseProvider {
   constructor({ circuitBreaker }) {
     super({ circuitBreaker });
@@ -57,7 +59,7 @@ class SportyHunterProvider extends BaseProvider {
     return [new StreamEntity({
       name: 'Nuvio Web Player',
       title: `SportyHunter Stream`,
-      externalUrl: `http://localhost:8080/watch?url=${encodeURIComponent(this.baseUrl + '/match/' + sourceId)}&title=${encodeURIComponent(matchTitle)}`
+      externalUrl: `${BASE_URL}/watch?url=${encodeURIComponent(this.baseUrl + '/match/' + sourceId)}&title=${encodeURIComponent(matchTitle)}`
     })];
   }
 }

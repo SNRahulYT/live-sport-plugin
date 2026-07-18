@@ -3,6 +3,8 @@ const BaseProvider = require('./BaseProvider');
 const MatchEntity = require('../domain/MatchEntity');
 const StreamEntity = require('../domain/StreamEntity');
 
+const { BASE_URL } = require('../config');
+
 class StreamSportsProvider extends BaseProvider {
   constructor({ circuitBreaker }) {
     super({ circuitBreaker });
@@ -43,7 +45,7 @@ class StreamSportsProvider extends BaseProvider {
     return [new StreamEntity({
       name: 'Nuvio Web Player',
       title: `StreamSports99 Stream`,
-      externalUrl: `http://localhost:8080/watch?url=${encodeURIComponent('https://streamsports99.ru/match/' + sourceId)}&title=${encodeURIComponent(matchTitle)}`
+      externalUrl: `${BASE_URL}/watch?url=${encodeURIComponent('https://streamsports99.ru/match/' + sourceId)}&title=${encodeURIComponent(matchTitle)}`
     })];
   }
 }

@@ -4,6 +4,8 @@ const BaseProvider = require('./BaseProvider');
 const MatchEntity = require('../domain/MatchEntity');
 const StreamEntity = require('../domain/StreamEntity');
 
+const { BASE_URL } = require('../config');
+
 class NtvProvider extends BaseProvider {
   constructor({ circuitBreaker }) {
     super({ circuitBreaker });
@@ -52,7 +54,7 @@ class NtvProvider extends BaseProvider {
     return [new StreamEntity({
       name: 'Nuvio Web Player',
       title: `NTV Stream`,
-      externalUrl: `http://localhost:8080/watch?url=${encodeURIComponent(sourceId)}&title=${encodeURIComponent(matchTitle)}`
+      externalUrl: `${BASE_URL}/watch?url=${encodeURIComponent(sourceId)}&title=${encodeURIComponent(matchTitle)}`
     })];
   }
 }
