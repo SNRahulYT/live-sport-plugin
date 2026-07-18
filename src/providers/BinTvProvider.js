@@ -58,34 +58,16 @@ class BinTvProvider extends BaseProvider {
       console.error(`[${this.name}] Error fetching main JSON:`, e.message);
     }
 
-    // Extra BinTV (Streamed-Images JSON)
+    // Extra BinTV (Streamed-Images JSON) is currently serving stale, months-old events (like Roland Garros).
+    // We are skipping it to prevent the catalog from being cluttered with dead week-old streams.
+    /*
     try {
       const extraData = await this.fetchExtra.fire();
-      if (extraData && Array.isArray(extraData.matches)) {
-        extraData.matches.forEach((s, index) => {
-          const title = s.title || `Extra Event ${index}`;
-          if (!Array.isArray(s.url) || s.url.length === 0) return;
-
-          const sources = s.url.map(stream => ({
-            source: 'bintv',
-            id: stream.source || 'Stream',
-            url: stream.url
-          }));
-
-          matches.push(new MatchEntity({
-            id: `extra_${index}_${this.normalizeStr(title).substring(0, 10)}`,
-            title: title,
-            category: 'other',
-            date: Date.now().toString(),
-            popular: '0',
-            sources: sources,
-            thumbnail_url: s.poster || ''
-          }));
-        });
-      }
+      // ...
     } catch (e) {
       console.error(`[${this.name}] Error fetching extra JSON:`, e.message);
     }
+    */
 
     return matches;
   }

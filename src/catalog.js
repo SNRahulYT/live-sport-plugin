@@ -12,11 +12,11 @@ function mapMatchToMetaPreview(match) {
   }
   let background = poster;
 
-  let dateObj = new Date();
-  if (match.date && !isNaN(parseInt(match.date))) {
-     dateObj = new Date(parseInt(match.date));
+  let timeString = '24/7 Stream';
+  if (match.date && !isNaN(parseInt(match.date)) && parseInt(match.date) > 0) {
+     const dateObj = new Date(parseInt(match.date));
+     timeString = dateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   }
-  const timeString = dateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
   const prefix = match.popular === '1' ? '🔴 LIVE: ' : '';
   const cast = [];
