@@ -30,7 +30,7 @@ class MatchAggregator {
     // Fetch all providers in parallel
     const results = await Promise.allSettled(this.providers.map(p => p.getMatches()));
     
-    const mergedMap = new Map();
+    const finalMatches = [];
 
     // Map arrays into dictionaries for easier merging
     results.forEach((promiseResult, providerIndex) => {
@@ -38,12 +38,12 @@ class MatchAggregator {
         const providerMatches = promiseResult.value;
         providerMatches.forEach(match => {
           if (!match.id || !match.title) return;
-          const key = match.id || match.title.toLowerCase();
           
-          if (!mergedMap.has(key)) {
-            mergedMap.set(key, match);
+          const existing = finalMatches.find(m => this.isSameEvent(m, match));
+          
+          if (!existing) {
+            finalMatches.push(match);
           } else {
-            const existing = mergedMap.get(key);
             // Merge sources
             match.sources.forEach(src => {
               if (!existing.sources.find(s => s.id === src.id && s.source === src.source)) {
@@ -54,14 +54,15 @@ class MatchAggregator {
             if (match.popular === '1') {
               existing.popular = '1';
             }
+            // Prefer metadata if existing lacks it
+            if (!existing.poster && match.poster) existing.poster = match.poster;
+            if (!existing.logo && match.logo) existing.logo = match.logo;
           }
         });
       } else {
         console.error(`[MatchAggregator] Provider ${providerIndex} failed:`, promiseResult.reason);
       }
     });
-
-    const finalMatches = Array.from(mergedMap.values());
     
     const now = Date.now();
     // Smart Trending Engine: Boost popular matches globally, but only if they are actually live or starting soon
