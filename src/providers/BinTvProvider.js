@@ -1,4 +1,3 @@
-const axios = require('axios');
 const BaseProvider = require('./BaseProvider');
 const MatchEntity = require('../domain/MatchEntity');
 const StreamEntity = require('../domain/StreamEntity');
@@ -12,8 +11,10 @@ class BinTvProvider extends BaseProvider {
     this.mainUrl = 'https://api.ppv.st/api/streams';
     
     this.fetchMain = this.circuitBreaker.wrap(`${this.name}_fetchMain`, async () => {
-      const res = await axios.get(this.mainUrl, { timeout: 10000 });
-      return res.data;
+      const headers = { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/127.0.0.0 Safari/537.36' };
+      const res = await fetch(this.mainUrl, { headers, signal: AbortSignal.timeout(10000) });
+      if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
+      return await res.json();
     });
   }
 

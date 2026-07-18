@@ -1,4 +1,3 @@
-const axios = require('axios');
 const BaseProvider = require('./BaseProvider');
 const MatchEntity = require('../domain/MatchEntity');
 const StreamEntity = require('../domain/StreamEntity');
@@ -8,10 +7,12 @@ class StreamFreeProvider extends BaseProvider {
     super(opts);
     this.name = 'StreamFree';
     this.apiUrl = 'https://streamfree.top/streams';
-    // Wrap the axios fetch with our circuit breaker
+    // Wrap the fetch with our circuit breaker
     this.fetchData = this.circuitBreaker.wrap(`${this.name}_fetch`, async () => {
-      const res = await axios.get(this.apiUrl, { timeout: 7000 });
-      return res.data;
+      const headers = { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/127.0.0.0 Safari/537.36' };
+      const res = await fetch(this.apiUrl, { headers, signal: AbortSignal.timeout(7000) });
+      if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
+      return await res.json();
     });
   }
 
@@ -51,7 +52,10 @@ class StreamFreeProvider extends BaseProvider {
       // For StreamFree, we need the original category to resolve the stream
       const embedUrl = `https://streamfree.top/embed/${matchCategory}/${sourceId}`;
       const embedFetcher = this.circuitBreaker.wrap(`${this.name}_embed`, async () => {
-        return axios.get(embedUrl, { timeout: 10000 }).then(r => r.data);
+        const headers = { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/127.0.0.0 Safari/537.36' };
+        const res = await fetch(embedUrl, { headers, signal: AbortSignal.timeout(10000) });
+        if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
+        return await res.text();
       });
       
       const html = await embedFetcher.fire();
@@ -78,7 +82,10 @@ class StreamFreeProvider extends BaseProvider {
       // Fetch the stream key to determine if it's on a CDN or origin
       const streamKeyUrl = `https://streamfree.top/get-stream-key/${sourceId}`;
       const streamKeyFetcher = this.circuitBreaker.wrap(`${this.name}_streamKey`, async () => {
-        return axios.get(streamKeyUrl, { timeout: 10000 }).then(r => r.data);
+        const headers = { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/127.0.0.0 Safari/537.36' };
+        const res = await fetch(streamKeyUrl, { headers, signal: AbortSignal.timeout(10000) });
+        if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
+        return await res.json();
       });
       
       const streamKeyData = await streamKeyFetcher.fire();
