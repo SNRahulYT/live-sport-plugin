@@ -63,21 +63,27 @@ class MatchAggregator {
 
     const finalMatches = Array.from(mergedMap.values());
     
+    const now = Date.now();
     // Smart Trending Engine: Boost popular matches globally, but only if they are actually live or starting soon
     const TRENDING_KEYWORDS = ['real madrid', 'barcelona', 'manchester', 'arsenal', 'liverpool', 'chelsea', 'bayern', 'psg', 'lakers', 'warriors', 'mcgregor', 'super bowl', 'champions league', 'el clasico', 'f1', 'formula 1', 'grand prix'];
-    const now = Date.now();
     
     finalMatches.forEach(match => {
       const titleLower = match.title.toLowerCase();
+      
+      // Parse kickoff date (default to 0 if none provided, assume live)
+      const kickoff = parseInt(match.date) || 0;
+      const isWithinTimeWindow = kickoff === 0 || (now >= kickoff - (3 * 3600 * 1000) && now <= kickoff + (4 * 3600 * 1000));
+      
       if (TRENDING_KEYWORDS.some(kw => titleLower.includes(kw))) {
-        // Parse kickoff date (default to 0 if none provided, assume live)
-        const kickoff = parseInt(match.date) || 0;
-        
-        // Boost if there's no date (could be live), OR if the match is within a window of -3 hours to +3 hours from now.
-        // This prevents flagging a match happening in 3 days as "🔴 Live Now".
-        if (kickoff === 0 || (now >= kickoff - (3 * 3600 * 1000) && now <= kickoff + (3 * 3600 * 1000))) {
+        if (isWithinTimeWindow) {
           match.popular = '1';
         }
+      }
+      
+      // GLOBAL FIX: Some providers (like Streamed.pk) flag future events as popular/live early.
+      // We must override and strip the popular flag if the event is too far in the future.
+      if (match.popular === '1' && kickoff > 0 && !isWithinTimeWindow) {
+        match.popular = '0';
       }
     });
 
