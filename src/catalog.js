@@ -33,7 +33,7 @@ function mapMatchToMetaPreview(match) {
     background: background,
     logo: match.team1 && match.team1.logo ? match.team1.logo : null,
     releaseInfo: timeString,
-    description: `🏆 League: ${match.league || 'Various'}\n📅 Category: ${match.category.toUpperCase()}\n⏰ Kickoff: ${timeString}`,
+    description: `🏆 League: ${match.league || 'Various'}\n📅 Category: ${match.category.toUpperCase()}\n⏰ ${timeString === '24/7 Stream' ? 'Status: 24/7 Live Network' : 'Kickoff: ' + timeString}`,
     cast: cast
   };
 }

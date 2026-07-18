@@ -18,11 +18,11 @@ async function handleStream(type, id) {
 
   const streams = [];
 
-  const SOURCE_PRIORITY = { admin: 1, echo: 1, golf: 1, delta: 1, 'streamfree': 2, 'timstreams': 3, 'bintv': 4, 'ntv': 5, 'sportyhunter': 6, 'streamsports': 7 };
+  const SOURCE_PRIORITY = { admin: 1, echo: 1, golf: 1, delta: 1, 'streamfree': 2, 'timstreams': 3, 'bintv': 4, 'ntv': 5, 'sportyhunter': 6, 'streamsports': 7, 'iptv-org': 8 };
   const sortedSources = [...match.sources].sort((a, b) => {
     // If a source isn't in the list, but it's not one of our known fallback providers, 
     // it's likely a new Streamed.pk source. Give it priority 1.5 so it stays near the top.
-    const getPriority = (src) => SOURCE_PRIORITY[src] ?? (['streamfree', 'timstreams', 'bintv', 'ntv', 'sportyhunter', 'streamsports'].includes(src) ? 99 : 1.5);
+    const getPriority = (src) => SOURCE_PRIORITY[src] ?? (['streamfree', 'timstreams', 'bintv', 'ntv', 'sportyhunter', 'streamsports', 'iptv-org'].includes(src) ? 99 : 1.5);
     const pa = getPriority(a.source);
     const pb = getPriority(b.source);
     if (pa !== pb) return pa - pb;
@@ -158,6 +158,18 @@ async function handleStream(type, id) {
         s.score = streamScorer.calculateScore(s, sourceName);
         streams.push(s);
       }
+      continue;
+    }
+
+    if (sourceName === 'iptv-org') {
+      const s = {
+        name: 'Nuvio Direct',
+        title: `24/7 TV (${src.quality || 'Auto'})`,
+        url: src.url,
+        resolution: src.quality
+      };
+      s.score = streamScorer.calculateScore(s, sourceName);
+      streams.push(s);
       continue;
     }
 
