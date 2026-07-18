@@ -84,11 +84,12 @@ class StreamedPkProvider extends BaseProvider {
       for (const res of results) {
         if (res && res.data) {
           if (res.data.m3u8) {
+            const watchUrl = `https://embed.st/embed/${sourceName}/${sourceId}/${res.streamNo}`;
             const titleSuffix = availableCount > 1 ? ` (${sourceName} - Stream ${res.streamNo})` : ` (${sourceName})`;
             streams.push(new StreamEntity({
               name: `Nuvio Direct`,
               title: `Streamed.pk${titleSuffix}`,
-              url: res.data.m3u8,
+              url: res.data.relay || res.data.m3u8,
               externalUrl: `/watch?url=${encodeURIComponent(watchUrl)}&title=${encodeURIComponent(matchTitle)}`
             }));
           } else {
