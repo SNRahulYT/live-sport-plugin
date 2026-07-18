@@ -230,7 +230,13 @@ async function handleStream(type, id) {
   // Sort streams by score descending
   streams.sort((a, b) => b.score - a.score);
 
-  return { streams };
+  // Return streams with cacheMaxAge: 0 to force Nuvio to fetch a fresh token every time!
+  return { 
+    streams, 
+    cacheMaxAge: 0, 
+    staleRevalidate: 0, 
+    staleError: 0 
+  };
 }
 
 module.exports = {
