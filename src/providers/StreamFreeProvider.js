@@ -75,25 +75,43 @@ class StreamFreeProvider extends BaseProvider {
 
       if (!bestQuality || !t) throw new Error("No suitable stream qualities found");
 
-      // We skip the server check and just assume origin for now to save a request,
-      // or we can wrap the server fetch in circuit breaker too.
-      // Keeping it simple: assume origin
-      const baseUrl = `https://streamfree.top/live/${sourceId}${bestQuality}/index.m3u8`;
+      // Fetch the stream key to determine if it's on a CDN or origin
+      const streamKeyUrl = `https://streamfree.top/get-stream-key/${sourceId}`;
+      const streamKeyFetcher = this.circuitBreaker.wrap(`${this.name}_streamKey`, async () => {
+        return axios.get(streamKeyUrl, { timeout: 10000 }).then(r => r.data);
+      });
+      
+      const streamKeyData = await streamKeyFetcher.fire();
+      
+      let baseUrl = '';
+      if (streamKeyData && streamKeyData.is_external && streamKeyData.external_url) {
+         baseUrl = streamKeyData.external_url;
+      } else {
+         const serverName = (streamKeyData && streamKeyData.server_name) ? streamKeyData.server_name : 'origin';
+         // StreamFree javascript logic:
+         if (serverName !== 'origin') {
+            baseUrl = `https://streamfree.top/live-cdn/${sourceId}${bestQuality}/index.m3u8`;
+         } else {
+            baseUrl = `https://streamfree.top/live/${sourceId}${bestQuality}/index.m3u8`;
+         }
+      }
+      
       const targetUrl = `${baseUrl}?_t=${t._t}&_e=${t._e}&_n=${t._n}`;
 
-      // Nuvio HLS Proxy URL
-      const proxyUrlObj = new URL('http://localhost:3000/api/hls');
-      proxyUrlObj.searchParams.set('url', targetUrl);
-      proxyUrlObj.searchParams.set('embed', 'streamfree/live/1');
-      proxyUrlObj.searchParams.set('embedOrigin', 'https://streamfree.top');
-      proxyUrlObj.searchParams.set('referer', 'https://streamfree.top/');
-
-      // We'll replace the base url dynamically when returning the streams in catalog.js
       return [new StreamEntity({
-        name: 'Nuvio HLS Proxy',
+        name: 'StreamFree Direct',
         title: `StreamFree (${bestQuality})`,
-        url: proxyUrlObj.pathname + proxyUrlObj.search, // Path only, so we can append BASE_URL later
-        resolution: bestQuality
+        url: targetUrl, 
+        resolution: bestQuality,
+        behaviorHints: {
+          notWebReady: true,
+          proxyHeaders: {
+            request: {
+              "Referer": "https://streamfree.top/",
+              "Origin": "https://streamfree.top"
+            }
+          }
+        }
       })];
     } catch (error) {
       console.error(`[${this.name}] resolveStream failed for ${sourceId}:`, error.message);
