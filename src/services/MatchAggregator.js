@@ -87,9 +87,18 @@ class MatchAggregator {
       }
     });
 
-    console.log(`[MatchAggregator] Sync complete. Merged ${finalMatches.length} events.`);
-    this.cacheService.setMatches(finalMatches);
-    return finalMatches;
+    // Filter out matches that are already over (kickoff was > 6 hours ago)
+    const activeMatches = finalMatches.filter(match => {
+      const kickoff = parseInt(match.date) || 0;
+      if (kickoff === 0) return true; // Keep if we don't know the time
+      
+      const sixHoursMs = 6 * 3600 * 1000;
+      return now <= kickoff + sixHoursMs;
+    });
+
+    console.log(`[MatchAggregator] Sync complete. Merged ${activeMatches.length} active events.`);
+    this.cacheService.setMatches(activeMatches);
+    return activeMatches;
   }
 }
 
