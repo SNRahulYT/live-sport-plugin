@@ -201,7 +201,6 @@ app.get('/watch', (req, res) => {
     allow="autoplay; encrypted-media; fullscreen; picture-in-picture; accelerometer; gyroscope"
     scrolling="no"
     loading="eager"
-    sandbox="allow-scripts allow-same-origin allow-forms allow-presentation allow-popups"
   ></iframe>
 
   <video id="video-player" controls autoplay playsinline></video>
