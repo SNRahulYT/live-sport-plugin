@@ -108,17 +108,8 @@ class StreamFreeProvider extends BaseProvider {
       return [new StreamEntity({
         name: 'StreamFree Direct',
         title: `StreamFree (${bestQuality})`,
-        url: targetUrl, 
-        resolution: bestQuality,
-        behaviorHints: {
-          notWebReady: true,
-          proxyHeaders: {
-            request: {
-              "Referer": "https://streamfree.top/",
-              "Origin": "https://streamfree.top"
-            }
-          }
-        }
+        url: `/api/hls?url=${encodeURIComponent(targetUrl)}&origin=${encodeURIComponent('https://streamfree.top')}&referer=${encodeURIComponent('https://streamfree.top/')}`, 
+        resolution: bestQuality
       })];
     } catch (error) {
       console.error(`[${this.name}] resolveStream failed for ${sourceId}:`, error.message);
