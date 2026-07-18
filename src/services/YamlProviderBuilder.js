@@ -63,10 +63,11 @@ class GenericYamlProvider extends BaseProvider {
     // For simple YAML scrapers, we just return the link as an external player
     // Building a generic m3u8 extractor in YAML is too complex for this phase,
     // so we fallback to Nuvio Web Player.
+    const watchUrl = sourceId.startsWith('http') ? sourceId : `${this.config.baseUrl.replace(/\/$/, '')}${sourceId.startsWith('/') ? '' : '/'}${sourceId}`;
     return [new StreamEntity({
       name: 'Nuvio Web Player',
       title: `${this.name} (${matchTitle})`,
-      externalUrl: sourceId
+      externalUrl: watchUrl
     })];
   }
 }

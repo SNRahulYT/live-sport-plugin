@@ -51,10 +51,11 @@ class NtvProvider extends BaseProvider {
   async resolveStream(sourceId, matchCategory, matchTitle) {
     // We will pass the NTV page URL directly to the Web Player,
     // or if we had time we would scrape the iframe from that page.
+    const watchUrl = sourceId.startsWith('http') ? sourceId : `${this.baseUrl}${sourceId.startsWith('/') ? '' : '/'}${sourceId}`;
     return [new StreamEntity({
       name: 'Nuvio Web Player',
       title: `NTV Stream`,
-      externalUrl: sourceId
+      externalUrl: watchUrl
     })];
   }
 }

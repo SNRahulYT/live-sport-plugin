@@ -51,6 +51,7 @@ async function handleStream(type, id) {
           s.url = `${BASE_URL}${s.url}`;
         }
         s.score = streamScorer.calculateScore(s, sourceName);
+        s._source = sourceName;
         streams.push(s);
       }
       continue;
@@ -61,6 +62,7 @@ async function handleStream(type, id) {
       const resStreams = await provider.resolveStream(src.id, match.category, match.title);
       for (const s of resStreams) {
         s.score = streamScorer.calculateScore(s, sourceName);
+        s._source = sourceName;
         streams.push(s);
       }
       continue;
@@ -71,6 +73,7 @@ async function handleStream(type, id) {
       const resStreams = await provider.resolveStream(src.id, match.category, match.title);
       for (const s of resStreams) {
         s.score = streamScorer.calculateScore(s, sourceName);
+        s._source = sourceName;
         streams.push(s);
       }
       continue;
@@ -81,6 +84,7 @@ async function handleStream(type, id) {
       const resStreams = await provider.resolveStream(src.id, match.category, match.title);
       for (const s of resStreams) {
         s.score = streamScorer.calculateScore(s, sourceName);
+        s._source = sourceName;
         streams.push(s);
       }
       continue;
@@ -91,6 +95,7 @@ async function handleStream(type, id) {
       const resStreams = await provider.resolveStream(src.id, match.category, match.title);
       for (const s of resStreams) {
         s.score = streamScorer.calculateScore(s, sourceName);
+        s._source = sourceName;
         streams.push(s);
       }
       continue;
@@ -101,6 +106,7 @@ async function handleStream(type, id) {
       const resStreams = await provider.resolveStream(src.id, match.category, match.title);
       for (const s of resStreams) {
         s.score = streamScorer.calculateScore(s, sourceName);
+        s._source = sourceName;
         streams.push(s);
       }
       continue;
@@ -114,6 +120,7 @@ async function handleStream(type, id) {
         resolution: src.quality
       };
       s.score = streamScorer.calculateScore(s, sourceName);
+      s._source = sourceName;
       streams.push(s);
       continue;
     }
@@ -126,6 +133,7 @@ async function handleStream(type, id) {
         s.url = `${BASE_URL}${s.url}`;
       }
       s.score = streamScorer.calculateScore(s, sourceName);
+      s._source = sourceName;
       streams.push(s);
     }
   }

@@ -1,6 +1,7 @@
 const axios = require('axios');
 const BaseProvider = require('./BaseProvider');
 const MatchEntity = require('../domain/MatchEntity');
+const { BASE_URL } = require('../config');
 
 class TimStreamsProvider extends BaseProvider {
   constructor(opts) {
@@ -76,7 +77,7 @@ class TimStreamsProvider extends BaseProvider {
       streams.push(new StreamEntity({
         name: `Nuvio Web Player`,
         title: `TimStreams (${sourceId})`,
-        externalUrl: `/watch?url=${encodeURIComponent(watchUrl)}&title=${encodeURIComponent(matchTitle || 'Live Event')}`
+        externalUrl: `${BASE_URL}/watch?url=${encodeURIComponent(watchUrl)}&title=${encodeURIComponent(matchTitle || 'Live Event')}`
       }));
     } catch (err) {
       console.error(`[${this.name}] resolveStream failed for ${sourceId}:`, err.message);

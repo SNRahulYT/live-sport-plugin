@@ -2,6 +2,7 @@ const axios = require('axios');
 const BaseProvider = require('./BaseProvider');
 const MatchEntity = require('../domain/MatchEntity');
 const StreamEntity = require('../domain/StreamEntity');
+const { BASE_URL } = require('../config');
 
 class BinTvProvider extends BaseProvider {
   constructor(opts) {
@@ -87,7 +88,7 @@ class BinTvProvider extends BaseProvider {
         streams.push(new StreamEntity({
           name: `Nuvio Web Player`,
           title: `BinTV (${sourceId.split('/').pop()})`,
-          externalUrl: `/watch?url=${encodeURIComponent(watchUrl)}&title=${encodeURIComponent(matchTitle || 'Live Event')}`
+          externalUrl: `${BASE_URL}/watch?url=${encodeURIComponent(watchUrl)}&title=${encodeURIComponent(matchTitle || 'Live Event')}`
         }));
       }
     } catch (err) {

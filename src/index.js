@@ -27,14 +27,26 @@ const container = require('./container');
 
 // ─── Spawn the Streamed.pk Resolver ───────────────────────────────────────────
 
+const RESOLVER_PORT = process.env.RESOLVER_PORT || '3000';
 const resolverPath = path.join(__dirname, '..', 'resolver', 'src', 'server.js');
-console.log(`Starting Stream Resolver at ${resolverPath}...`);
+console.log(`Starting Stream Resolver at ${resolverPath} on port ${RESOLVER_PORT}...`);
 const resolverProcess = spawn('node', [resolverPath], {
   stdio: 'inherit',
-  env: { ...process.env, PORT: '3000', BASE_URL: BASE_URL }
+  env: { ...process.env, PORT: RESOLVER_PORT, BASE_URL: BASE_URL }
 });
 resolverProcess.on('error', (err) => console.error('Resolver spawn error:', err));
 resolverProcess.on('exit', (code, signal) => console.error(`[FATAL] Resolver process exited with code ${code} and signal ${signal}. Streams will not work until restarted.`));
+
+// Ensure child process is killed when the parent exits
+function shutdownResolver() {
+  if (resolverProcess && !resolverProcess.killed) {
+    console.log('Shutting down Stream Resolver...');
+    resolverProcess.kill();
+  }
+}
+process.on('exit', shutdownResolver);
+process.on('SIGINT', () => { shutdownResolver(); process.exit(0); });
+process.on('SIGTERM', () => { shutdownResolver(); process.exit(0); });
 
 // ─── Register Addon Handlers ──────────────────────────────────────────────────
 
@@ -59,9 +71,9 @@ app.get('/configure', (req, res) => {
   res.sendFile(path.join(__dirname, '..', 'public', 'configure.html'));
 });
 
-// Mount the HLS Video Proxy (routes to the internal resolver on port 3000)
+// Mount the HLS Video Proxy (routes to the internal resolver on port RESOLVER_PORT)
 app.use('/api', createProxyMiddleware({
-  target: 'http://localhost:3000/api',
+  target: `http://localhost:${RESOLVER_PORT}/api`,
   changeOrigin: true,
   logLevel: 'debug',
   onError: (err, req, res) => {
@@ -71,6 +83,67 @@ app.use('/api', createProxyMiddleware({
     }
   }
 }));
+
+// ─── Dynamic URL Rewrite Middleware ─────────────────────────────────────────────
+// The Stremio addon SDK processes streams and returns JSON. We intercept it here
+// so we can dynamically rewrite stream URLs to use the correct absolute host based 
+// on the incoming request, instead of hardcoding BASE_URL. This fixes issues where
+// the addon is accessed remotely but falls back to localhost URLs.
+app.use('/stream/', (req, res, next) => {
+  const originalEnd = res.end;
+  res.end = function(chunk, encoding, callback) {
+    if (chunk) {
+      let isBuffer = Buffer.isBuffer(chunk);
+      let bodyString = isBuffer ? chunk.toString('utf8') : chunk;
+
+      if (typeof bodyString === 'string') {
+        try {
+          const body = JSON.parse(bodyString);
+          if (body && Array.isArray(body.streams)) {
+            const host = req.get('host');
+            const proto = req.headers['x-forwarded-proto'] || req.protocol;
+            const dynamicBaseUrl = `${proto}://${host}`;
+            
+            let modified = false;
+            body.streams.forEach(s => {
+              // Fix externalUrl
+              if (s.externalUrl && s.externalUrl.startsWith('/watch')) {
+                s.externalUrl = `${dynamicBaseUrl}${s.externalUrl}`;
+                modified = true;
+              } else if (BASE_URL && s.externalUrl && s.externalUrl.startsWith(BASE_URL)) {
+                s.externalUrl = s.externalUrl.replace(BASE_URL, dynamicBaseUrl);
+                modified = true;
+              }
+              
+              // Fix direct stream url
+              if (s.url && s.url.startsWith('/api/hls')) {
+                s.url = `${dynamicBaseUrl}${s.url}`;
+                modified = true;
+              } else if (BASE_URL && s.url && s.url.startsWith(BASE_URL)) {
+                s.url = s.url.replace(BASE_URL, dynamicBaseUrl);
+                modified = true;
+              }
+            });
+            
+            if (modified) {
+              bodyString = JSON.stringify(body);
+              if (isBuffer) {
+                chunk = Buffer.from(bodyString, 'utf8');
+              } else {
+                chunk = bodyString;
+              }
+              res.setHeader('Content-Length', Buffer.byteLength(bodyString));
+            }
+          }
+        } catch (e) {
+          // ignore parse error
+        }
+      }
+    }
+    return originalEnd.call(this, chunk, encoding, callback);
+  };
+  next();
+});
 
 // Mount the Stremio addon router
 app.use(getRouter(builder.getInterface()));
