@@ -22,11 +22,11 @@ function m3u8Url(html) {
 
 export async function resolve(slot) {
   const embedUrl = `${slot.origin}/embed/${slot.path}`
-  const embedHtml = await (await fetch(embedUrl, { headers: fetchHeaders(`${slot.origin}/`) })).text()
+  const embedHtml = await (await fetch(embedUrl, { headers: fetchHeaders(`${slot.origin}/`), signal: AbortSignal.timeout(10000) })).text()
   const streamedUrl = iframeUrl(embedHtml)
-  const streamedHtml = await (await fetch(streamedUrl, { headers: fetchHeaders(embedUrl) })).text()
+  const streamedHtml = await (await fetch(streamedUrl, { headers: fetchHeaders(embedUrl), signal: AbortSignal.timeout(10000) })).text()
   const live = fid(streamedHtml)
   const playerUrl = `https://exposestrat.com/maestrohd1.php?player=desktop&live=${encodeURIComponent(live)}`
-  const playerHtml = await (await fetch(playerUrl, { headers: fetchHeaders(streamedUrl) })).text()
+  const playerHtml = await (await fetch(playerUrl, { headers: fetchHeaders(streamedUrl), signal: AbortSignal.timeout(10000) })).text()
   return m3u8Url(playerHtml)
 }

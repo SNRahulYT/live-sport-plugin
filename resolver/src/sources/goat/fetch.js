@@ -11,6 +11,7 @@ export async function postFetch(body, slot) {
       'User-Agent': ua,
     },
     body,
+    signal: AbortSignal.timeout(10000)
   })
   if (!res.ok) {
     const detail = (await res.text()).trim() || res.statusText

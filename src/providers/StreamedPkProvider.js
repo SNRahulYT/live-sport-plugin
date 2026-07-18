@@ -13,7 +13,8 @@ class StreamedPkProvider extends BaseProvider {
     this.apiUrl = `${domain}/api/matches/all`;
     
     this.fetchData = this.circuitBreaker.wrap(`${this.name}_fetch`, async () => {
-      const res = await axios.get(this.apiUrl, { timeout: 7000 });
+      const headers = { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/127.0.0.0 Safari/537.36' };
+      const res = await axios.get(this.apiUrl, { headers, timeout: 7000 });
       return res.data;
     });
   }
@@ -49,7 +50,8 @@ class StreamedPkProvider extends BaseProvider {
       let availableCount = 1; // fallback to 1 if we can't fetch the list
       
       try {
-        const listRes = await axios.get(streamListUrl, { timeout: 5000 });
+        const headers = { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/127.0.0.0 Safari/537.36' };
+        const listRes = await axios.get(streamListUrl, { headers, timeout: 5000 });
         if (Array.isArray(listRes.data) && listRes.data.length > 0) {
           availableCount = listRes.data.length;
         }
