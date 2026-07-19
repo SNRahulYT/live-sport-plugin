@@ -1,6 +1,6 @@
 # 🔴 Nuvio Live Sports Plugin
 
-[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy)
+[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/rajhodedara/live-sport-plugin)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
 [![Version](https://img.shields.io/badge/version-2.1.0-brightgreen.svg)](#)
 
