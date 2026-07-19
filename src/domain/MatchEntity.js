@@ -4,12 +4,25 @@ class MatchEntity {
     this.title = title || 'Unknown Match';
     this.category = category || 'other';
     
-    // Normalize date to unix timestamp string
-    if (date && !isNaN(parseInt(date))) {
-      this.date = date.toString();
-    } else {
-      this.date = Date.now().toString(); 
+    // Normalize all dates to Unix milliseconds
+if (date) {
+  let ts;
+
+  if (typeof date === "string" && /^\d+$/.test(date)) {
+    ts = Number(date);
+
+    // Convert seconds → milliseconds
+    if (ts < 1000000000000) {
+      ts *= 1000;
     }
+  } else {
+    ts = new Date(date).getTime();
+  }
+
+  this.date = !isNaN(ts) ? ts.toString() : "0";
+} else {
+  this.date = "0";
+}
     
     this.popular = popular === '1' || popular === true ? '1' : '0';
     this.sources = Array.isArray(sources) ? sources : [];
