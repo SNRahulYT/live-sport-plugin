@@ -107,9 +107,14 @@ The plugin leverages a highly modular **Dependency Injection** container (`Awili
 4. **Resilient Scraping:** Stream resolution requests are wrapped in `Opossum` circuit breakers to prevent cascading failures if a third-party site is unresponsive.
 
 ## ⚙️ How the project works internally
-- **Catalog Construction:** `catalog.js` pulls the cached unified events, filtering them by category (e.g., `live`, `upcoming`, `football`) and sorting them by kickoff time. Fuzzy matching prevents duplicate events from different APIs.
-- **Stream Extraction:** When a stream is requested, `streams.js` determines the priority of available sources. It delegates extraction to `providers/` (like `StreamFreeProvider.js` or YAML-based scrapers).
-- **Scoring & Rewriting:** Extracted streams are scored via `StreamScoringService` to rank 1080p/720p direct links highest. `.m3u8` links are rewritten to point to the internal `/api/hls` endpoint, proxying traffic securely to the end-user. Embed links are routed through the custom `/watch` HTML page containing WebRTC P2P integrations.
+
+1. **Catalog Construction:** A background Cron job periodically fetches and merges events from multiple APIs (StreamFree, Streamed.pk, BinTV, etc.), storing them in memory. Fuzzy matching prevents duplicate events.
+2. **Extracting the Embed:** When you click a match, the add-on scrapes the original sports site to find the hidden video embed link.
+3. **Decrypting the `.m3u8`:** Streaming sites encrypt or hide their actual video source. The add-on runs a decryption process on that embedded link's HTML/JS to reverse-engineer and extract the raw `.m3u8` playlist file.
+4. **The CORS Problem:** If we gave that raw `.m3u8` link directly to Nuvio, it would fail. The stream provider checks the `Referer` and `Origin` headers to ensure the video is only played on their web player.
+5. **The Internal Proxy (The Magic):** To bypass this (and bypass any ISP blocks), the add-on spawns its own internal Proxy process (`resolver`). Instead of giving Nuvio the original video link, it gives Nuvio a link to *your deployed server*.
+6. **Downloading the Video Chunks:** When Nuvio asks your server for the stream, your server secretly reaches out to the original site. It attaches the exact fake `Referer` and `Origin` headers needed to spoof their security, intercepts the individual video chunks (`.ts` segments), and passes them directly back to Nuvio natively in real-time.
+7. **Render Keep-Alive Automation:** If deployed on Render's free tier, the application automatically detects its `RENDER_EXTERNAL_URL` and uses a background cron job to ping itself every 14 minutes. This guarantees the server never goes to sleep and remains blazing fast 24/7 without needing external tools like UptimeRobot!
 
 ## ⚠️ Known Limitations
 - **In-Memory Cache:** All matches are stored in memory. A server restart momentarily clears the catalog until the next cron cycle.
