@@ -332,6 +332,7 @@ app.get('/watch', (req, res) => {
     id="player"
     allowfullscreen
     allow="autoplay; encrypted-media; fullscreen; picture-in-picture; accelerometer; gyroscope"
+    sandbox="allow-scripts allow-same-origin allow-presentation"
     scrolling="no"
     loading="eager"
   ></iframe>
