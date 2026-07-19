@@ -38,7 +38,11 @@ class SportyHunterProvider extends BaseProvider {
             id: `sporty_${m.id || index}`,
             title: m.title || m.name || `Sporty Match ${index}`,
             category: (m.sport || 'other').toLowerCase(),
-            date: m.timestamp || m.date || null,
+            date: m.timestamp
+              ? (Number(m.timestamp) < 1000000000000
+                  ? Number(m.timestamp) * 1000
+                  : Number(m.timestamp))
+              : m.date,
             popular: '0',
             sources: [{ source: 'sportyhunter', id: m.id || index, url: m.url || m.streamUrl }]
           }));
