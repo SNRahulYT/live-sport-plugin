@@ -15,6 +15,8 @@ const NtvProvider = require('./providers/NtvProvider');
 const IptvOrgProvider = require('./providers/IptvOrgProvider');
 const SportyHunterProvider = require('./providers/SportyHunterProvider');
 const StreamSportsProvider = require('./providers/StreamSportsProvider');
+const WatchFootyProvider = require('./providers/WatchFootyProvider');
+const CdnLiveProvider = require('./providers/CdnLiveProvider');
 
 const YamlProviderBuilder = require('./services/YamlProviderBuilder');
 
@@ -46,6 +48,8 @@ container.register({
   iptvOrgProvider: asClass(IptvOrgProvider).singleton(),
   sportyHunterProvider: asClass(SportyHunterProvider).singleton(),
   streamSportsProvider: asClass(StreamSportsProvider).singleton(),
+  watchFootyProvider: asClass(WatchFootyProvider).singleton(),
+  cdnLiveProvider: asClass(CdnLiveProvider).singleton(),
   yamlProviders: asValue(yamlProviders)
 });
 

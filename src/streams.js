@@ -18,11 +18,11 @@ async function handleStream(type, id) {
 
   const streams = [];
 
-  const SOURCE_PRIORITY = { admin: 1, echo: 1, golf: 1, delta: 1, 'streamfree': 2, 'timstreams': 3, 'bintv': 4, 'ntv': 5, 'sportyhunter': 6, 'streamsports': 7, 'iptv-org': 8 };
+  const SOURCE_PRIORITY = { admin: 1, echo: 1, golf: 1, delta: 1, 'watchfooty': 2, 'cdnlive': 3, 'streamfree': 4, 'timstreams': 5, 'bintv': 6, 'ntv': 7, 'sportyhunter': 8, 'streamsports': 9, 'iptv-org': 10 };
   const sortedSources = [...match.sources].sort((a, b) => {
     // If a source isn't in the list, but it's not one of our known fallback providers, 
     // it's likely a new Streamed.pk source. Give it priority 1.5 so it stays near the top.
-    const getPriority = (src) => SOURCE_PRIORITY[src] ?? (['streamfree', 'timstreams', 'bintv', 'ntv', 'sportyhunter', 'streamsports', 'iptv-org'].includes(src) ? 99 : 1.5);
+    const getPriority = (src) => SOURCE_PRIORITY[src] ?? (['watchfooty', 'cdnlive', 'streamfree', 'timstreams', 'bintv', 'ntv', 'sportyhunter', 'streamsports', 'iptv-org'].includes(src) ? 99 : 1.5);
     const pa = getPriority(a.source);
     const pb = getPriority(b.source);
     if (pa !== pb) return pa - pb;
@@ -66,6 +66,12 @@ async function handleStream(type, id) {
         resStreams = await provider.resolveStream(src.id, match.category, match.title);
       } else if (sourceName === 'streamsports') {
         const provider = container.resolve('streamSportsProvider');
+        resStreams = await provider.resolveStream(src.id, match.category, match.title);
+      } else if (sourceName === 'watchfooty') {
+        const provider = container.resolve('watchFootyProvider');
+        resStreams = await provider.resolveStream(src.id, match.category, match.title);
+      } else if (sourceName === 'cdnlive') {
+        const provider = container.resolve('cdnLiveProvider');
         resStreams = await provider.resolveStream(src.id, match.category, match.title);
       } else if (sourceName === 'iptv-org') {
         resStreams = [{
@@ -129,6 +135,8 @@ async function handleStream(type, id) {
     else if (s.title && s.title.toLowerCase().includes('ntv')) providerName = 'NTV';
     else if (s.title && s.title.toLowerCase().includes('sporty')) providerName = 'SportyHunter';
     else if (s.title && s.title.toLowerCase().includes('streamfree')) providerName = 'StreamFree';
+    else if (s.title && s.title.toLowerCase().includes('watchfooty')) providerName = 'WatchFooty';
+    else if (s.title && s.title.toLowerCase().includes('cdnlive')) providerName = 'CDNLiveTV';
     else if (s.title && s.title.toLowerCase().includes('24/7')) providerName = 'Direct IPTV';
 
     let originalTitle = s.title || '';

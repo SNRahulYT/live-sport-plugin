@@ -1,6 +1,6 @@
 class MatchAggregator {
-  constructor({ streamFreeProvider, streamedPkProvider, timStreamsProvider, binTvProvider, ntvProvider, iptvOrgProvider, sportyHunterProvider, streamSportsProvider, cacheService, yamlProviders }) {
-    this.providers = [streamFreeProvider, streamedPkProvider, timStreamsProvider, binTvProvider, ntvProvider, iptvOrgProvider, sportyHunterProvider, streamSportsProvider, ...(yamlProviders || [])];
+  constructor({ streamFreeProvider, streamedPkProvider, timStreamsProvider, binTvProvider, ntvProvider, iptvOrgProvider, sportyHunterProvider, streamSportsProvider, watchFootyProvider, cdnLiveProvider, cacheService, yamlProviders }) {
+    this.providers = [streamFreeProvider, streamedPkProvider, timStreamsProvider, binTvProvider, ntvProvider, iptvOrgProvider, sportyHunterProvider, streamSportsProvider, watchFootyProvider, cdnLiveProvider, ...(yamlProviders || [])];
     this.cacheService = cacheService;
   }
 

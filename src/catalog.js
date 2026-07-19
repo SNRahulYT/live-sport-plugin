@@ -3,7 +3,8 @@ const container = require('./container');
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function mapMatchToMetaPreview(match) {
-  const safeTitle = encodeURIComponent((match.title || 'Live Match').substring(0, 30));
+  const titleStr = match.title || 'Live Match';
+  const safeTitle = encodeURIComponent(Array.from(titleStr).slice(0, 30).join(''));
   
   // Dynamic Sport-Specific Posters
   const categoryColors = {
