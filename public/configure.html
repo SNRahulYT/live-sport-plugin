@@ -257,6 +257,24 @@
       </div>
     </div>
 
+    <div class="section">
+      <h3>Streaming Sources</h3>
+      <div class="sports-grid" id="sourcesGrid">
+        <label class="checkbox-label active"><input type="checkbox" value="streamfree" checked> 🌐 StreamFree (Recommended) (Web Browser Source)</label>
+        <label class="checkbox-label active"><input type="checkbox" value="timstreams" checked> 📺 TimStreams (Recommended)</label>
+        <label class="checkbox-label active"><input type="checkbox" value="bintv" checked> 📺 BinTV (Recommended)</label>
+        <label class="checkbox-label active"><input type="checkbox" value="ntv" checked> 📺 NTV</label>
+        <label class="checkbox-label active"><input type="checkbox" value="iptv-org" checked> 📡 IPTV Org (Direct IPTV)</label>
+        <label class="checkbox-label active"><input type="checkbox" value="sportyhunter" checked> 📺 SportyHunter</label>
+        <label class="checkbox-label active"><input type="checkbox" value="streamsports" checked> 📺 StreamSports</label>
+        <label class="checkbox-label active"><input type="checkbox" value="watchfooty" checked> 📺 WatchFooty</label>
+        <label class="checkbox-label active"><input type="checkbox" value="cdnlive" checked> 📺 CDNLiveTV</label>
+        <label class="checkbox-label active"><input type="checkbox" value="streamsports99" checked> 📺 StreamSports99</label>
+        <label class="checkbox-label active"><input type="checkbox" value="ppvdomains" checked> 🌐 PPV Domains (Web Browser Source)</label>
+        <label class="checkbox-label active"><input type="checkbox" value="streamic" checked> 🌐 Streamic (Web Browser Source)</label>
+      </div>
+    </div>
+
     <a href="#" id="installBtn" class="btn">INSTALL ADDON</a>
   </div>
 
@@ -264,10 +282,12 @@
     const btn = document.getElementById('installBtn');
     const input = document.getElementById('teams');
     const checkboxes = document.querySelectorAll('#sportsGrid input[type="checkbox"]');
+    const sourceCheckboxes = document.querySelectorAll('#sourcesGrid input[type="checkbox"]');
 
     function updateLink() {
       const teams = input.value.trim();
       const selectedSports = Array.from(checkboxes).filter(cb => cb.checked).map(cb => cb.value);
+      const selectedSources = Array.from(sourceCheckboxes).filter(cb => cb.checked).map(cb => cb.value);
 
       let manifestUrl = window.location.origin + '/manifest.json';
 
@@ -277,6 +297,11 @@
       if (selectedSports.length < checkboxes.length) {
         config.sports = selectedSports.join(',');
         if (config.sports === '') config.sports = 'none'; // If nothing is checked
+      }
+
+      if (selectedSources.length < sourceCheckboxes.length) {
+        config.sources = selectedSources.join(',');
+        if (config.sources === '') config.sources = 'none'; // If nothing is checked
       }
 
       if (Object.keys(config).length > 0) {
@@ -289,7 +314,7 @@
     }
 
     input.addEventListener('input', updateLink);
-    checkboxes.forEach(cb => {
+    [...checkboxes, ...sourceCheckboxes].forEach(cb => {
       cb.addEventListener('change', (e) => {
         const label = e.target.closest('.checkbox-label');
         if (e.target.checked) label.classList.add('active');
