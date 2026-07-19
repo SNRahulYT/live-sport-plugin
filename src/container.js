@@ -8,7 +8,6 @@ const MatchAggregator = require('./services/MatchAggregator');
 const StreamScoringService = require('./services/StreamScoringService');
 
 const StreamFreeProvider = require('./providers/StreamFreeProvider');
-const StreamedPkProvider = require('./providers/StreamedPkProvider');
 const TimStreamsProvider = require('./providers/TimStreamsProvider');
 const BinTvProvider = require('./providers/BinTvProvider');
 const NtvProvider = require('./providers/NtvProvider');
@@ -41,7 +40,6 @@ const yamlProviders = yamlBuilder.buildProviders(container, container.resolve('c
 // Register Providers
 container.register({
   streamFreeProvider: asClass(StreamFreeProvider).singleton(),
-  streamedPkProvider: asClass(StreamedPkProvider).singleton(),
   timStreamsProvider: asClass(TimStreamsProvider).singleton(),
   binTvProvider: asClass(BinTvProvider).singleton(),
   ntvProvider: asClass(NtvProvider).singleton(),

@@ -1,7 +1,7 @@
 const container = require('./container');
 const { BASE_URL } = require('./config');
 
-async function handleStream(type, id) {
+async function handleStream(type, id, config) {
   if (type !== 'tv' || !id.startsWith('nuvio_sport_')) {
     return { streams: [] };
   }
@@ -81,9 +81,8 @@ async function handleStream(type, id) {
           resolution: src.quality
         }];
       } else {
-        // Streamed.pk
-        const provider = container.resolve('streamedPkProvider');
-        resStreams = await provider.resolveStream(src.id, match.category, match.title, '1', sourceName);
+        // Unknown or unsupported source, ignore
+        resStreams = [];
       }
 
       for (const s of resStreams) {

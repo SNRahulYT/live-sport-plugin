@@ -52,9 +52,9 @@ process.on('SIGTERM', () => { shutdownResolver(); process.exit(0); });
 
 // ─── Register Addon Handlers ──────────────────────────────────────────────────
 
-builder.defineCatalogHandler(({ type, id, extra }) => handleCatalog(type, id, extra));
-builder.defineMetaHandler(({ type, id })           => handleMeta(type, id));
-builder.defineStreamHandler(({ type, id })         => handleStream(type, id));
+builder.defineCatalogHandler(({ type, id, extra, config }) => handleCatalog(type, id, extra, config));
+builder.defineMetaHandler(({ type, id, config })           => handleMeta(type, id, config));
+builder.defineStreamHandler(({ type, id, config })         => handleStream(type, id, config));
 
 // ─── Build Express App ────────────────────────────────────────────────────────
 
