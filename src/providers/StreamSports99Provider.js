@@ -11,7 +11,7 @@ class StreamSports99Provider extends BaseProvider {
     
     this.fetchMain = this.circuitBreaker.wrap(`${this.name}_fetchMain`, async () => {
       const headers = { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' };
-      const res = await fetch(this.apiUrl, { headers, signal: AbortSignal.timeout(10000) });
+      const res = await fetch(this.apiUrl, { headers, signal: AbortSignal.timeout(20000) });
       if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
       return await res.json();
     });

@@ -13,7 +13,7 @@ class NtvProvider extends BaseProvider {
     this.baseUrl = 'http://ntv.cx';
     
     this.fetchData = this.circuitBreaker.wrap(`${this.name}_fetch`, async (url) => {
-      const res = await axios.get(url, { timeout: 8000 });
+      const res = await axios.get(url, { timeout: 15000 });
       return res.data;
     });
   }

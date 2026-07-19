@@ -16,7 +16,7 @@ class CircuitBreakerService {
     }
 
     const options = {
-      timeout: 10000, // If function takes longer than 10 seconds, trigger a failure
+      timeout: 20000, // If function takes longer than 20 seconds, trigger a failure
       errorThresholdPercentage: 50, // When 50% of requests fail, trip the circuit
       resetTimeout: 5 * 60 * 1000, // After 5 minutes, try again
       volumeThreshold: 3 // Wait for at least 3 failures before tripping
